@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-white text-ink font-sans;
+  }
+  ::placeholder {
+    color: #a89db8;
+  }
+}
+
+@layer components {
+  /* Focus ring used by every brand input (mirrors .nb-input from the prototype) */
+  .nb-input {
+    @apply border-[1.5px] border-field rounded-xl bg-[#FCFBFE] text-ink outline-none transition-[border-color,box-shadow] duration-150;
+  }
+  .nb-input:focus {
+    border-color: #7b2fbe;
+    box-shadow: 0 0 0 3px rgba(123, 47, 190, 0.14);
+  }
+}
+
+/* Pulsing dot used for the "current" timeline node + status icon */
+@keyframes nbpulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(123, 47, 190, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(123, 47, 190, 0);
+  }
+}
+.nb-pulse {
+  animation: nbpulse 2s infinite;
+}
+.nb-pulse-slow {
+  animation: nbpulse 2.4s infinite;
+}

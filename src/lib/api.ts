@@ -1,0 +1,105 @@
+import type { Order, ImportRecord, Lookup } from "./types";
+
+const TOKEN_KEY = "astro-fretes:token";
+
+export function getToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function setToken(token: string) {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearToken() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isAuthenticated(): boolean {
+  return getToken().length > 0;
+}
+
+/** Public tracking lookup. Returns null when nothing matches. */
+export async function trackOrder(q: string): Promise<Order | null> {
+  const res = await fetch(`/api/track?q=${encodeURIComponent(q)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Falha ao consultar o rastreio.");
+  const data = await res.json();
+  return data.order as Order;
+}
+
+/** Admin login — stores the token on success. */
+export async function adminLogin(user: string, password: string): Promise<boolean> {
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ user, password }),
+  });
+  if (!res.ok) return false;
+  const { token } = await res.json();
+  if (!token) return false;
+  setToken(token);
+  return true;
+}
+
+function authHeaders(): Record<string, string> {
+  return { authorization: `Bearer ${getToken()}` };
+}
+
+export interface AdminData {
+  orders: Order[];
+  imports: ImportRecord[];
+  lookups: Lookup[];
+}
+
+export async function fetchAdminData(): Promise<AdminData> {
+  const res = await fetch("/api/admin/orders", { headers: authHeaders() });
+  if (res.status === 401) throw new Error("unauthorized");
+  if (!res.ok) throw new Error("Falha ao carregar os pedidos.");
+  return res.json();
+}
+
+export interface ImportResult {
+  count: number;
+  added: number;
+  errors: string[];
+}
+
+export async function importCsv(
+  csv: string,
+  mode: "merge" | "replace",
+  name: string
+): Promise<ImportResult> {
+  const res = await fetch("/api/admin/import", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ csv, mode, name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.errors?.length
+      ? data.errors.join(" ")
+      : data?.error ?? "Falha ao importar.";
+    throw new Error(msg);
+  }
+  return data as ImportResult;
+}
+
+export async function resetToDemo(): Promise<void> {
+  const res = await fetch("/api/admin/reset", {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Falha ao restaurar os dados.");
+}
