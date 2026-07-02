@@ -78,7 +78,20 @@ function unwrapOrder(payload: any): any {
   return p;
 }
 
-/** Achata um objeto: escalares por chave normalizada (1ª ocorrência vence) + desce em objetos e arrays. */
+/** A LPQV manda alguns campos como STRING contendo JSON (ex.: "extra":"{...}"), não como objeto. */
+function tryParseJsonObject(s: string): Record<string, unknown> | unknown[] | undefined {
+  const t = s.trim();
+  const looksLikeJson = (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
+  if (!looksLikeJson) return undefined;
+  try {
+    const parsed = JSON.parse(t);
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Achata um objeto: escalares por chave normalizada (1ª ocorrência vence) + desce em objetos, arrays e strings JSON. */
 function flatten(obj: unknown, fields: Record<string, string>, depth = 0) {
   if (!obj || typeof obj !== "object" || depth > 6) return;
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
@@ -90,6 +103,13 @@ function flatten(obj: unknown, fields: Record<string, string>, depth = 0) {
     if (typeof v === "object") {
       flatten(v, fields, depth + 1);
       continue;
+    }
+    if (typeof v === "string") {
+      const nested = tryParseJsonObject(v);
+      if (nested) {
+        flatten(nested, fields, depth + 1);
+        continue;
+      }
     }
     const field = KEY[norm(k)];
     if (field && fields[field] === undefined) fields[field] = String(v);
@@ -118,9 +138,19 @@ function normalizeDate(raw: string): { display: string; iso: string | null } {
 
 /** Monta um pedido a partir do payload do webhook da LPQV (envelope response.result[]). */
 export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
-  const order = unwrapOrder(payload);
+  const order = unwrapOrder(payload) as Record<string, unknown>;
   const fields: Record<string, string> = {};
   flatten(order, fields);
+
+  // A LPQV manda um "status" de fluxo interno (ex.: "order-created", "processed")
+  // que não é o status do PAGAMENTO — como os dois usam a mesma chave "status", o
+  // flatten (1ª ocorrência vence) ficava com o de fluxo. O pagamento de verdade
+  // vem em orders_transactions[0].status (waiting_payment/payment_accept/canceled)
+  // — prioriza ele quando presente.
+  const txStatus = Array.isArray(order?.orders_transactions)
+    ? (order.orders_transactions as Array<Record<string, unknown>>)[0]?.status
+    : undefined;
+  if (txStatus) fields.status = String(txStatus);
 
   const pedidoRef = fields.pedidoRef || "";
   const cpf = fields.cpf || "";
