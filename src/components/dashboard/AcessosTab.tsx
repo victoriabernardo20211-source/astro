@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Lookup } from "@/lib/types";
 import { useAdmin } from "@/lib/admin-store";
 import { Smartphone, Monitor, Search, Check, Info } from "@/components/icons";
 
-const COLUMNS = ["Quando", "Dispositivo", "Sistema", "Navegador", "Consulta", "Pedido", "IP"];
+const COLUMNS = ["Quando", "Dispositivo", "Sistema", "Navegador", "Consulta", "Pedido / Cliente", "CPF", "IP"];
 
 const isDesktopOs = (l: Lookup) => /windows|mac|linux/i.test(l.os || "");
 const isAndroid = (l: Lookup) => /android/i.test(l.os || l.device || "");
@@ -26,9 +27,16 @@ function when(iso?: string | null): string {
 }
 
 export default function AcessosTab() {
-  const { lookups, loading } = useAdmin();
+  const { lookups, loading, orders } = useAdmin();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("todos");
+
+  // mapa código -> pedido, pra mostrar o CPF e linkar aos detalhes
+  const orderByCode = useMemo(() => {
+    const m = new Map<string, (typeof orders)[number]>();
+    for (const o of orders) m.set(o.codigo, o);
+    return m;
+  }, [orders]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -165,9 +173,15 @@ export default function AcessosTab() {
                     {l.query || "—"}
                   </td>
                   <td className="px-[16px] py-[13px]">
-                    {l.found ? (
-                      <span className="text-ink">
-                        <span className="font-semibold">{l.codigo}</span>
+                    {l.found && l.codigo ? (
+                      <span>
+                        <Link
+                          to={`/rastrear?codigo=${encodeURIComponent(l.codigo)}`}
+                          target="_blank"
+                          className="font-semibold text-brand-mid no-underline hover:underline"
+                        >
+                          {l.codigo} ↗
+                        </Link>
                         {l.cliente ? (
                           <span className="block text-[12px] text-muted">
                             {l.cliente}
@@ -179,6 +193,9 @@ export default function AcessosTab() {
                         não encontrado
                       </span>
                     )}
+                  </td>
+                  <td className="whitespace-nowrap px-[16px] py-[13px] tabular-nums text-ink">
+                    {(l.codigo && orderByCode.get(l.codigo)?.cpf) || "—"}
                   </td>
                   <td className="whitespace-nowrap px-[16px] py-[13px] tabular-nums text-faint">
                     {l.ip || "—"}

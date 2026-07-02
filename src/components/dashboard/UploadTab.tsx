@@ -1,11 +1,32 @@
 import { useRef, useState } from "react";
 import { useAdmin } from "@/lib/admin-store";
+import { sendTestEmail } from "@/lib/api";
 import { CSV_TEMPLATE } from "@/lib/csv";
-import { Upload, FileText, Check, Info } from "@/components/icons";
+import { Upload, FileText, Check, Info, Mail } from "@/components/icons";
 
 export default function UploadTab() {
   const { importCsv } = useAdmin();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [testTo, setTestTo] = useState("");
+  const [testMsg, setTestMsg] = useState("");
+  const [testErr, setTestErr] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
+
+  async function enviarTeste() {
+    if (!testTo.trim()) return;
+    setTestBusy(true);
+    setTestMsg("");
+    setTestErr("");
+    try {
+      await sendTestEmail(testTo.trim());
+      setTestMsg(`E-mail de teste enviado para ${testTo.trim()}. Confira a caixa de entrada (e o spam).`);
+    } catch (e) {
+      setTestErr(e instanceof Error ? e.message : "Falha ao enviar.");
+    } finally {
+      setTestBusy(false);
+    }
+  }
 
   const [fileName, setFileName] = useState("");
   const [csv, setCsv] = useState("");
@@ -51,11 +72,17 @@ export default function UploadTab() {
     setErrors([]);
     try {
       const result = await importCsv(csv, mode, fileName || "planilha.csv");
-      setMessage(
+      const base =
         mode === "merge"
           ? `${result.count} pedido(s) processado(s) — ${result.added} novo(s) adicionado(s).`
-          : `Base substituída por ${result.count} pedido(s).`
-      );
+          : `Base substituída por ${result.count} pedido(s).`;
+      const mail =
+        result.mailConfigured && result.emailed !== undefined
+          ? ` ${result.emailed} e-mail(s) de postagem enviado(s)${
+              result.emailSkipped ? ` (${result.emailSkipped} acima do limite por importação)` : ""
+            }.`
+          : "";
+      setMessage(base + mail);
       if (result.errors?.length) setErrors(result.errors);
       clear();
     } catch (e) {
@@ -188,6 +215,45 @@ export default function UploadTab() {
         </div>
       )}
 
+      {/* Enviar e-mail de teste */}
+      <div className="mt-8 rounded-2xl border border-line bg-white p-5">
+        <div className="flex items-center gap-2">
+          <Mail size={18} color="#7B2FBE" />
+          <h4 className="font-display text-[15px] font-bold text-ink">
+            Testar e-mail de postagem
+          </h4>
+        </div>
+        <p className="mt-1 text-[13px] text-muted">
+          Envie um e-mail de exemplo (igual ao que o cliente recebe) para conferir
+          se o SMTP está funcionando.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="email"
+            value={testTo}
+            onChange={(e) => setTestTo(e.target.value)}
+            placeholder="seu-email@exemplo.com"
+            className="flex-1 rounded-[11px] border-[1.5px] border-field bg-white px-[14px] py-[10px] text-[14px] text-ink outline-none"
+          />
+          <button
+            onClick={enviarTeste}
+            disabled={testBusy || !testTo.trim()}
+            className="rounded-[11px] bg-brand-mid px-5 py-[10px] text-[14px] font-bold text-white disabled:opacity-50"
+          >
+            {testBusy ? "Enviando…" : "Enviar teste"}
+          </button>
+        </div>
+        {testMsg && (
+          <div className="mt-3 flex items-center gap-2 text-[13px] font-medium text-[#1F8A5B]">
+            <Check size={15} color="#1F8A5B" strokeWidth={3} /> {testMsg}
+          </div>
+        )}
+        {testErr && (
+          <div className="mt-3 flex items-start gap-2 text-[13px] text-[#A23B3B]">
+            <Info size={15} color="#C2410C" className="mt-[2px] flex-none" /> {testErr}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

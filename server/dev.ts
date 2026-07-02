@@ -5,6 +5,7 @@ import login from "../api/login.js";
 import adminOrders from "../api/admin/orders.js";
 import adminImport from "../api/admin/import.js";
 import adminDelete from "../api/admin/delete.js";
+import adminTestEmail from "../api/admin/test-email.js";
 
 /**
  * Local API server. Mounts the same handlers that Vercel deploys as serverless
@@ -25,6 +26,7 @@ app.post("/api/login", wrap(login));
 app.get("/api/admin/orders", wrap(adminOrders));
 app.post("/api/admin/import", wrap(adminImport));
 app.post("/api/admin/delete", wrap(adminDelete));
+app.post("/api/admin/test-email", wrap(adminTestEmail));
 
 const port = Number(process.env.API_PORT || 3001);
 app.listen(port, () => console.log(`[api] http://localhost:${port}`));

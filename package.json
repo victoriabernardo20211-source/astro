@@ -13,6 +13,7 @@
   "dependencies": {
     "@electric-sql/pglite": "0.2.17",
     "drizzle-orm": "0.38.4",
+    "nodemailer": "6.9.16",
     "postgres": "3.4.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/express": "5.0.0",
     "@types/node": "22.10.7",
+    "@types/nodemailer": "6.4.17",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
     "@vercel/node": "5.0.0",

@@ -81,6 +81,8 @@ export async function recordLookup(entry: LookupInput): Promise<void> {
 export interface ImportOutcome {
   count: number;
   added: number;
+  /** Pedidos realmente novos nesta importação (para notificar por e-mail). */
+  addedRows: NewOrderRow[];
 }
 
 /** Upserts parsed rows. "replace" wipes the table first; "merge" overwrites by code. */
@@ -99,12 +101,11 @@ export async function importOrders(
     .from(orders);
   const existCodes = new Set(existingRows.map((r) => r.c));
   const existCpfs = new Set(existingRows.map((r) => r.p).filter(Boolean));
-  const added =
-    mode === "replace"
-      ? rows.length
-      : rows.filter(
-          (r) => !(existCodes.has(r.codigo) || (r.cpf && existCpfs.has(r.cpf)))
-        ).length;
+  // novos = os que ainda não existiam (por código ou CPF), mesmo no modo replace
+  const addedRows = rows.filter(
+    (r) => !(existCodes.has(r.codigo) || (r.cpf && existCpfs.has(r.cpf)))
+  );
+  const added = addedRows.length;
 
   if (mode === "replace") {
     await db.delete(orders);
@@ -119,7 +120,7 @@ export async function importOrders(
   }
 
   await db.insert(imports).values({ name, count: rows.length, added, mode });
-  return { count: rows.length, added };
+  return { count: rows.length, added, addedRows };
 }
 
 /** Apaga os pedidos com os códigos informados. Retorna quantos foram pedidos. */

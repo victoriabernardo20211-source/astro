@@ -74,6 +74,9 @@ export interface ImportResult {
   count: number;
   added: number;
   errors: string[];
+  emailed?: number;
+  emailSkipped?: number;
+  mailConfigured?: boolean;
 }
 
 export async function importCsv(
@@ -103,6 +106,16 @@ export async function deleteOrders(codigos: string[]): Promise<void> {
     body: JSON.stringify({ codigos }),
   });
   if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
+}
+
+export async function sendTestEmail(to: string): Promise<void> {
+  const res = await fetch("/api/admin/test-email", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ to }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar o e-mail de teste.");
 }
 
 export async function deleteAllOrders(): Promise<void> {
