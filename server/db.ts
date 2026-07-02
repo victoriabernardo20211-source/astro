@@ -76,6 +76,7 @@ async function ensureSchema(db: DB) {
   // ensure new columns exist on databases created by earlier versions
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS data_pedido text;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS transportadora text;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_enviado_em text;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS imports (
       id serial PRIMARY KEY,

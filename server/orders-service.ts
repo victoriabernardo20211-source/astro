@@ -1,8 +1,87 @@
 import { or, sql, desc, inArray } from "drizzle-orm";
 import { getDb, schema } from "./db.js";
 import type { NewOrderRow, OrderRow, ImportRow, LookupRow } from "./schema.js";
+import { sendPostadoEmail, isMailConfigured } from "./mailer.js";
 
 const { orders, imports, lookups } = schema;
+
+export interface SendEmailsResult {
+  sent: number;
+  already: number; // já tinham recebido (não reenviado)
+  noEmail: number; // pedido sem e-mail
+  failed: number;
+  skipped: number; // acima do limite por operação
+  mailConfigured: boolean;
+}
+
+const MAX_EMAILS = 300;
+const CONCURRENCY = 6;
+
+/**
+ * Envia o e-mail de "pedido postado" para os pedidos informados, SEM duplicar:
+ * pula quem já recebeu (a não ser que force=true) e marca a data de envio.
+ */
+export async function sendOrderEmails(
+  codigos: string[],
+  force = false
+): Promise<SendEmailsResult> {
+  if (!isMailConfigured())
+    return { sent: 0, already: 0, noEmail: 0, failed: 0, skipped: 0, mailConfigured: false };
+
+  const db = await getDb();
+  const codes = [...new Set(codigos)];
+  if (!codes.length)
+    return { sent: 0, already: 0, noEmail: 0, failed: 0, skipped: 0, mailConfigured: true };
+
+  const rows = await db.select().from(orders).where(inArray(orders.codigo, codes));
+
+  let already = 0;
+  let noEmail = 0;
+  const candidates = rows.filter((o) => {
+    if (!o.email) {
+      noEmail++;
+      return false;
+    }
+    if (o.emailEnviadoEm && !force) {
+      already++; // não duplica
+      return false;
+    }
+    return true;
+  });
+
+  const list = candidates.slice(0, MAX_EMAILS);
+  const now = new Date().toISOString();
+  const sentCodes: string[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < list.length; i += CONCURRENCY) {
+    const chunk = list.slice(i, i + CONCURRENCY);
+    const res = await Promise.allSettled(chunk.map((o) => sendPostadoEmail(o)));
+    res.forEach((r, idx) => {
+      if (r.status === "fulfilled" && r.value) {
+        sent++;
+        sentCodes.push(chunk[idx].codigo);
+      } else failed++;
+    });
+  }
+
+  if (sentCodes.length) {
+    await db
+      .update(orders)
+      .set({ emailEnviadoEm: now })
+      .where(inArray(orders.codigo, sentCodes));
+  }
+
+  return {
+    sent,
+    already,
+    noEmail,
+    failed,
+    skipped: candidates.length - list.length,
+    mailConfigured: true,
+  };
+}
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];

@@ -18,10 +18,12 @@ interface AdminContextValue {
   importCsv: (
     csv: string,
     mode: "merge" | "replace",
-    name: string
+    name: string,
+    sendEmails: boolean
   ) => Promise<api.ImportResult>;
   deleteOrders: (codigos: string[]) => Promise<void>;
   deleteAll: () => Promise<void>;
+  sendEmails: (codigos: string[], force?: boolean) => Promise<api.SendEmailsResult>;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -63,8 +65,17 @@ export function AdminDataProvider({
   }, [refresh]);
 
   const importCsv = useCallback(
-    async (csv: string, mode: "merge" | "replace", name: string) => {
-      const result = await api.importCsv(csv, mode, name);
+    async (csv: string, mode: "merge" | "replace", name: string, sendEmails: boolean) => {
+      const result = await api.importCsv(csv, mode, name, sendEmails);
+      await refresh();
+      return result;
+    },
+    [refresh]
+  );
+
+  const sendEmails = useCallback(
+    async (codigos: string[], force = false) => {
+      const result = await api.sendOrderEmails(codigos, force);
       await refresh();
       return result;
     },
@@ -96,6 +107,7 @@ export function AdminDataProvider({
         importCsv,
         deleteOrders,
         deleteAll,
+        sendEmails,
       }}
     >
       {children}

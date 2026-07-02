@@ -2,15 +2,16 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/lib/admin-store";
 import { statusBadge, statusIndex, currentStatusLabel } from "@/lib/data";
-import { Search, Trash } from "@/components/icons";
+import { Search, Trash, Mail, Check } from "@/components/icons";
 
-const COLUMNS = ["", "CPF", "Cliente", "Código", "Cidade/UF", "Status", "Data", "Ações"];
+const COLUMNS = ["", "CPF", "Cliente", "Código", "Cidade/UF", "Status", "E-mail", "Data", "Ações"];
 
 export default function TrackingsTab() {
-  const { orders, loading, deleteOrders, deleteAll } = useAdmin();
+  const { orders, loading, deleteOrders, deleteAll, sendEmails } = useAdmin();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -75,6 +76,30 @@ export default function TrackingsTab() {
     }
   }
 
+  async function enviarEmails() {
+    const codigos = [...selected];
+    if (!codigos.length) return;
+    setBusy(true);
+    setEmailMsg("");
+    try {
+      const r = await sendEmails(codigos);
+      if (!r.mailConfigured) {
+        setEmailMsg("SMTP não configurado — defina as variáveis SMTP_* no Vercel.");
+      } else {
+        const partes = [`${r.sent} enviado(s)`];
+        if (r.already) partes.push(`${r.already} já enviados (não reenviados)`);
+        if (r.noEmail) partes.push(`${r.noEmail} sem e-mail`);
+        if (r.failed) partes.push(`${r.failed} falharam`);
+        setEmailMsg(partes.join(" · "));
+      }
+      setSelected(new Set());
+    } catch (e) {
+      setEmailMsg(e instanceof Error ? e.message : "Falha ao enviar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-[18px] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -97,8 +122,15 @@ export default function TrackingsTab() {
         </div>
       </div>
 
-      {/* Ações de exclusão */}
+      {/* Ações em massa */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
+        <button
+          onClick={enviarEmails}
+          disabled={busy || selected.size === 0}
+          className="flex items-center gap-2 rounded-[10px] bg-brand-mid px-[14px] py-[9px] text-[13px] font-bold text-white disabled:opacity-40"
+        >
+          <Mail size={15} color="#fff" /> Enviar e-mail ({selected.size})
+        </button>
         <button
           onClick={apagarSelecionados}
           disabled={busy || selected.size === 0}
@@ -120,6 +152,9 @@ export default function TrackingsTab() {
           >
             Limpar seleção
           </button>
+        )}
+        {emailMsg && (
+          <span className="text-[13px] font-medium text-brand">{emailMsg}</span>
         )}
       </div>
 
@@ -193,6 +228,20 @@ export default function TrackingsTab() {
                       >
                         {label}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[15px]">
+                      {o.emailEnviadoEm ? (
+                        <span
+                          title={new Date(o.emailEnviadoEm).toLocaleString("pt-BR")}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#D8F5E3] px-[9px] py-[4px] text-[11.5px] font-bold text-[#1F8A5B]"
+                        >
+                          <Check size={12} color="#1F8A5B" strokeWidth={3} /> enviado
+                        </span>
+                      ) : !o.email ? (
+                        <span className="text-[12px] text-faint">sem e-mail</span>
+                      ) : (
+                        <span className="text-[12px] text-muted">não enviado</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-[16px] py-[15px] text-muted">
                       {o.data || "—"}

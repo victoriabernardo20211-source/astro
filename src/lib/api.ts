@@ -82,12 +82,13 @@ export interface ImportResult {
 export async function importCsv(
   csv: string,
   mode: "merge" | "replace",
-  name: string
+  name: string,
+  sendEmails: boolean
 ): Promise<ImportResult> {
   const res = await fetch("/api/admin/import", {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ csv, mode, name }),
+    body: JSON.stringify({ csv, mode, name, sendEmails }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -106,6 +107,29 @@ export async function deleteOrders(codigos: string[]): Promise<void> {
     body: JSON.stringify({ codigos }),
   });
   if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
+}
+
+export interface SendEmailsResult {
+  sent: number;
+  already: number;
+  noEmail: number;
+  failed: number;
+  skipped: number;
+  mailConfigured: boolean;
+}
+
+export async function sendOrderEmails(
+  codigos: string[],
+  force = false
+): Promise<SendEmailsResult> {
+  const res = await fetch("/api/admin/send-emails", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ codigos, force }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar e-mails.");
+  return data as SendEmailsResult;
 }
 
 export async function sendTestEmail(to: string): Promise<void> {

@@ -88,29 +88,3 @@ export async function sendPostadoEmail(order: NewOrderRow): Promise<boolean> {
   return true;
 }
 
-const MAX_PER_IMPORT = 300;
-const CONCURRENCY = 6;
-
-export interface MailBatchResult {
-  sent: number;
-  skipped: number; // acima do limite por importação
-  failed: number;
-}
-
-/** Dispara o e-mail de postagem para os pedidos novos (com limite e concorrência). */
-export async function sendPostadoBatch(orders: NewOrderRow[]): Promise<MailBatchResult> {
-  if (!isMailConfigured()) return { sent: 0, skipped: 0, failed: 0 };
-  const withEmail = orders.filter((o) => isEmail(o.email));
-  const list = withEmail.slice(0, MAX_PER_IMPORT);
-  let sent = 0;
-  let failed = 0;
-  for (let i = 0; i < list.length; i += CONCURRENCY) {
-    const chunk = list.slice(i, i + CONCURRENCY);
-    const res = await Promise.allSettled(chunk.map((o) => sendPostadoEmail(o)));
-    for (const r of res) {
-      if (r.status === "fulfilled" && r.value) sent++;
-      else if (r.status === "rejected") failed++;
-    }
-  }
-  return { sent, skipped: withEmail.length - list.length, failed };
-}

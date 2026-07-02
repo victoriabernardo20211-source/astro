@@ -42,6 +42,7 @@ export interface Order {
   dataPedido?: string | null;
   previsao?: string | null;
   createdAt?: string | null;
+  emailEnviadoEm?: string | null;
 }
 
 /** A CSV import event (admin "Meus Arquivos"). */

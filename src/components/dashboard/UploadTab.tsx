@@ -35,6 +35,18 @@ export default function UploadTab() {
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [autoEmail, setAutoEmail] = useState(
+    () => localStorage.getItem("astro-fretes:autoEmail") !== "0"
+  );
+
+  function toggleAutoEmail(v: boolean) {
+    setAutoEmail(v);
+    try {
+      localStorage.setItem("astro-fretes:autoEmail", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function handleFile(file: File) {
     setMessage("");
@@ -71,17 +83,18 @@ export default function UploadTab() {
     setMessage("");
     setErrors([]);
     try {
-      const result = await importCsv(csv, mode, fileName || "planilha.csv");
+      const result = await importCsv(csv, mode, fileName || "planilha.csv", autoEmail);
       const base =
         mode === "merge"
           ? `${result.count} pedido(s) processado(s) — ${result.added} novo(s) adicionado(s).`
           : `Base substituída por ${result.count} pedido(s).`;
-      const mail =
-        result.mailConfigured && result.emailed !== undefined
-          ? ` ${result.emailed} e-mail(s) de postagem enviado(s)${
-              result.emailSkipped ? ` (${result.emailSkipped} acima do limite por importação)` : ""
+      const mail = !autoEmail
+        ? " Envio automático desligado — os e-mails podem ser enviados manualmente na aba Rastreamentos."
+        : result.mailConfigured
+          ? ` ${result.emailed ?? 0} e-mail(s) de postagem enviado(s)${
+              result.emailSkipped ? ` (${result.emailSkipped} acima do limite)` : ""
             }.`
-          : "";
+          : " (SMTP não configurado — nenhum e-mail enviado.)";
       setMessage(base + mail);
       if (result.errors?.length) setErrors(result.errors);
       clear();
@@ -172,6 +185,19 @@ export default function UploadTab() {
               Limpar
             </button>
           </div>
+
+          <label className="mt-4 flex cursor-pointer items-center gap-2 text-[13.5px] font-medium text-ink">
+            <input
+              type="checkbox"
+              checked={autoEmail}
+              onChange={(e) => toggleAutoEmail(e.target.checked)}
+              className="h-4 w-4 accent-[#7B2FBE]"
+            />
+            Enviar e-mail de postagem automaticamente aos pedidos novos
+            <span className="text-faint">
+              (desmarque para enviar manualmente depois)
+            </span>
+          </label>
 
           <div className="mt-4 flex flex-wrap gap-3">
             <button
