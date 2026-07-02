@@ -24,12 +24,9 @@ export function BrandHeader() {
             <Mail size={14} color="#7B2FBE" /> contato@astrofretes.com.br
           </span>
         </div>
-        <Link
-          to="/login"
-          className="flex items-center gap-[6px] font-semibold text-muted no-underline"
-        >
-          <User size={14} color="#7B2FBE" /> Área do cliente
-        </Link>
+        <span className="flex items-center gap-[6px] font-semibold text-muted">
+          <User size={14} color="#7B2FBE" /> Atendimento: seg a sex, 8h às 18h
+        </span>
       </div>
 
       {/* Main header */}

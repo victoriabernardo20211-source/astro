@@ -1,4 +1,4 @@
-import type { Order, ImportRecord, Lookup } from "./types";
+import type { Order, ImportRecord, Lookup, Presence, WebhookEvent } from "./types";
 
 const TOKEN_KEY = "astro-fretes:token";
 
@@ -130,6 +130,23 @@ export async function sendOrderEmails(
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar e-mails.");
   return data as SendEmailsResult;
+}
+
+export interface PresenceData {
+  online: number;
+  visitors: Presence[];
+}
+
+export async function fetchPresence(): Promise<PresenceData> {
+  const res = await fetch("/api/admin/presence", { headers: authHeaders() });
+  if (!res.ok) throw new Error("Falha ao carregar presença.");
+  return res.json();
+}
+
+export async function fetchWebhooks(): Promise<{ events: WebhookEvent[] }> {
+  const res = await fetch("/api/admin/webhooks", { headers: authHeaders() });
+  if (!res.ok) throw new Error("Falha ao carregar webhooks.");
+  return res.json();
 }
 
 export async function sendTestEmail(to: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import PresencePing from "./components/PresencePing";
 import HomePage from "./pages/HomePage";
 import RastrearPage from "./pages/RastrearPage";
 import LoginPage from "./pages/LoginPage";
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <>
       <ScrollManager />
+      <PresencePing />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/rastrear" element={<RastrearPage />} />

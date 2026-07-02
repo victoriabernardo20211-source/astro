@@ -147,7 +147,7 @@ const MESES = [
 ];
 
 /** "26/06/2026 16:44:49" → "26 jun 2026". Falls back to the raw input. */
-function formatDate(raw: string): string {
+export function formatDate(raw: string): string {
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!m) return raw || "";
   const [, d, mo, y] = m;
@@ -156,7 +156,7 @@ function formatDate(raw: string): string {
 }
 
 /** "26/06/2026 16:44:49" → "2026-06-26" (ISO date), or null. */
-function toIsoDate(raw: string): string | null {
+export function toIsoDate(raw: string): string | null {
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!m) return null;
   let [, d, mo, y] = m;

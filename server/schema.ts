@@ -76,7 +76,42 @@ export const lookups = pgTable("lookups", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+/** Visitantes ativos (heartbeat) para o "quem está online". */
+export const presence = pgTable("presence", {
+  id: text("id").primaryKey(), // id de sessão do navegador
+  path: text("path"),
+  ip: text("ip"),
+  device: text("device"),
+  brand: text("brand"),
+  os: text("os"),
+  browser: text("browser"),
+  firstSeen: timestamp("first_seen").defaultNow(),
+  lastSeen: timestamp("last_seen").defaultNow(),
+});
+
+/** Tentativas de login (para bloquear força-bruta por IP). */
+export const loginAttempts = pgTable("login_attempts", {
+  id: serial("id").primaryKey(),
+  ip: text("ip"),
+  ok: integer("ok").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+/** Eventos recebidos por webhook (LPQV), com o payload bruto para depuração. */
+export const webhookEvents = pgTable("webhook_events", {
+  id: serial("id").primaryKey(),
+  method: text("method"),
+  codigo: text("codigo"),
+  cliente: text("cliente"),
+  ok: integer("ok").default(1),
+  message: text("message"),
+  raw: text("raw"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export type OrderRow = typeof orders.$inferSelect;
 export type NewOrderRow = typeof orders.$inferInsert;
 export type ImportRow = typeof imports.$inferSelect;
 export type LookupRow = typeof lookups.$inferSelect;
+export type PresenceRow = typeof presence.$inferSelect;
+export type WebhookEventRow = typeof webhookEvents.$inferSelect;

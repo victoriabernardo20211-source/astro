@@ -9,12 +9,16 @@ import PedidosLpqvTab from "@/components/dashboard/PedidosLpqvTab";
 import ArquivosTab from "@/components/dashboard/ArquivosTab";
 import ContaTab from "@/components/dashboard/ContaTab";
 import AcessosTab from "@/components/dashboard/AcessosTab";
+import AoVivoTab from "@/components/dashboard/AoVivoTab";
+import WebhooksTab from "@/components/dashboard/WebhooksTab";
 
 const TABS = [
+  "Ao vivo",
   "Rastreamentos",
   "Pedidos LPQV",
   "Acessos",
   "Upload Planilha",
+  "Webhooks",
   "Meus Arquivos",
   "Minha Conta",
 ] as const;
@@ -24,7 +28,7 @@ type Tab = (typeof TABS)[number];
 export default function PainelPage() {
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<Tab>("Rastreamentos");
+  const [tab, setTab] = useState<Tab>("Ao vivo");
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -101,10 +105,12 @@ export default function PainelPage() {
 
       {/* Body */}
       <div className="px-6 pb-12 pt-[26px] lg:px-7">
+        {tab === "Ao vivo" && <AoVivoTab />}
         {tab === "Rastreamentos" && <TrackingsTab />}
         {tab === "Upload Planilha" && <UploadTab />}
         {tab === "Pedidos LPQV" && <PedidosLpqvTab />}
         {tab === "Acessos" && <AcessosTab />}
+        {tab === "Webhooks" && <WebhooksTab />}
         {tab === "Meus Arquivos" && <ArquivosTab />}
         {tab === "Minha Conta" && <ContaTab />}
       </div>

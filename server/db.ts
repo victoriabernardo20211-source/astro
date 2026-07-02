@@ -103,6 +103,39 @@ async function ensureSchema(db: DB) {
       created_at timestamp DEFAULT now()
     );
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS presence (
+      id text PRIMARY KEY,
+      path text,
+      ip text,
+      device text,
+      brand text,
+      os text,
+      browser text,
+      first_seen timestamp DEFAULT now(),
+      last_seen timestamp DEFAULT now()
+    );
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id serial PRIMARY KEY,
+      ip text,
+      ok integer DEFAULT 0,
+      created_at timestamp DEFAULT now()
+    );
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS webhook_events (
+      id serial PRIMARY KEY,
+      method text,
+      codigo text,
+      cliente text,
+      ok integer DEFAULT 1,
+      message text,
+      raw text,
+      created_at timestamp DEFAULT now()
+    );
+  `);
 }
 
 /** Memoized, schema-ensured database handle. */

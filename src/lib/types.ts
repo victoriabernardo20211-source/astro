@@ -55,6 +55,31 @@ export interface ImportRecord {
   createdAt?: string | null;
 }
 
+/** A visitor currently online (heartbeat). */
+export interface Presence {
+  id: string;
+  path?: string | null;
+  ip?: string | null;
+  device?: string | null;
+  brand?: string | null;
+  os?: string | null;
+  browser?: string | null;
+  firstSeen?: string | null;
+  lastSeen?: string | null;
+}
+
+/** A webhook event received from LPQV (raw payload kept for debugging). */
+export interface WebhookEvent {
+  id: number;
+  method?: string | null;
+  codigo?: string | null;
+  cliente?: string | null;
+  ok?: number | null;
+  message?: string | null;
+  raw?: string | null;
+  createdAt?: string | null;
+}
+
 /** A public tracking lookup captured from a visitor's device. */
 export interface Lookup {
   id: number;

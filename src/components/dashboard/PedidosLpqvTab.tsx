@@ -1,151 +1,330 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/lib/admin-store";
-import { statusBadge, statusIndex, currentStatusLabel } from "@/lib/data";
 import type { Order } from "@/lib/types";
-import { Package, Truck, MapPin, Check } from "@/components/icons";
+import { statusBadge, statusIndex, currentStatusLabel } from "@/lib/data";
+import { Search, Mail, Trash, Package, Check, Bell } from "@/components/icons";
 
-/** Groups the 8 canonical stages into 4 coarse buckets used for filtering. */
-function bucket(order: Order): "preparacao" | "transporte" | "entrega" | "entregue" {
-  const i = statusIndex(currentStatusLabel(order));
-  if (i <= 1) return "preparacao";
-  if (i <= 5) return "transporte";
-  if (i === 6) return "entrega";
-  return "entregue";
+function money(s?: string | null): number {
+  if (!s) return 0;
+  let v = String(s).trim();
+  if (v.includes(",")) v = v.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(v.replace(/[^\d.-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+const brl = (n: number) =>
+  "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+function orderDay(o: Order): string {
+  return (o.dataPedido || o.createdAt || "").slice(0, 10);
 }
 
-const FILTERS = [
-  { key: "todos", label: "Todos" },
-  { key: "preparacao", label: "Em preparação" },
-  { key: "transporte", label: "Em transporte" },
-  { key: "entrega", label: "Saiu para entrega" },
-  { key: "entregue", label: "Entregues" },
-] as const;
+const isToday = (o: Order) => orderDay(o) === localToday();
+const aNotificar = (o: Order) => !!o.email && !o.emailEnviadoEm;
+const notificado = (o: Order) => !!o.emailEnviadoEm;
+const entregue = (o: Order) => statusIndex(o.status || "") === 7;
+const emTransporte = (o: Order) => {
+  const i = statusIndex(currentStatusLabel(o));
+  return i >= 2 && i <= 6;
+};
 
-type FilterKey = (typeof FILTERS)[number]["key"];
+const FILTERS: Array<{ key: string; label: string; test: (o: Order) => boolean }> = [
+  { key: "todos", label: "Todos", test: () => true },
+  { key: "hoje", label: "Novos do dia", test: isToday },
+  { key: "notificar", label: "A notificar", test: aNotificar },
+  { key: "notificados", label: "Notificados", test: notificado },
+  { key: "transporte", label: "Em transporte", test: emTransporte },
+  { key: "entregues", label: "Entregues", test: entregue },
+];
 
 export default function PedidosLpqvTab() {
-  const { orders } = useAdmin();
-  const [filter, setFilter] = useState<FilterKey>("todos");
+  const { orders, loading, sendEmails, deleteOrders, deleteAll } = useAdmin();
+  const [filter, setFilter] = useState("todos");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
 
   const stats = useMemo(() => {
-    const counts = { preparacao: 0, transporte: 0, entrega: 0, entregue: 0 };
-    for (const o of orders) counts[bucket(o)]++;
-    return counts;
+    const total = orders.length;
+    const novos = orders.filter(isToday).length;
+    const notificar = orders.filter(aNotificar).length;
+    const vendas = orders.reduce((s, o) => s + money(o.valorTotal), 0);
+    return { total, novos, notificar, vendas };
   }, [orders]);
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const test = FILTERS.find((f) => f.key === filter)?.test ?? (() => true);
+    return orders.filter((o) => {
+      if (!test(o)) return false;
+      if (!q) return true;
+      return [o.cliente, o.cpf, o.codigo, o.pedidoRef, o.cidade, o.uf, o.email]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [orders, filter, query]);
+
   const cards = [
-    { icon: Package, label: "Total de pedidos", value: orders.length, tint: "#7B2FBE" },
-    { icon: Truck, label: "Em transporte", value: stats.transporte, tint: "#6B23B0" },
-    { icon: MapPin, label: "Saiu para entrega", value: stats.entrega, tint: "#C2410C" },
-    { icon: Check, label: "Entregues", value: stats.entregue, tint: "#1F8A5B" },
+    { icon: Package, label: "Pedidos", value: String(stats.total), tint: "#7B2FBE" },
+    { icon: Bell, label: "Novos do dia", value: String(stats.novos), tint: "#6B23B0" },
+    { icon: Mail, label: "A notificar", value: String(stats.notificar), tint: "#C2410C" },
+    { icon: Check, label: "Vendas (total)", value: brl(stats.vendas), tint: "#1F8A5B" },
   ];
 
-  const filtered = useMemo(
-    () => (filter === "todos" ? orders : orders.filter((o) => bucket(o) === filter)),
-    [orders, filter]
-  );
+  const allShownSelected =
+    filtered.length > 0 && filtered.every((o) => selected.has(o.codigo));
+  const toggle = (c: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(c) ? n.delete(c) : n.add(c);
+      return n;
+    });
+  const toggleAll = () =>
+    setSelected((p) => {
+      const n = new Set(p);
+      if (allShownSelected) filtered.forEach((o) => n.delete(o.codigo));
+      else filtered.forEach((o) => n.add(o.codigo));
+      return n;
+    });
+
+  async function enviar() {
+    const cods = [...selected];
+    if (!cods.length) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const r = await sendEmails(cods);
+      if (!r.mailConfigured) setMsg("SMTP não configurado.");
+      else {
+        const p = [`${r.sent} enviado(s)`];
+        if (r.already) p.push(`${r.already} já enviados`);
+        if (r.noEmail) p.push(`${r.noEmail} sem e-mail`);
+        setMsg(p.join(" · "));
+      }
+      setSelected(new Set());
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Falha.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function apagarSel() {
+    const cods = [...selected];
+    if (!cods.length) return;
+    if (!confirm(`Apagar ${cods.length} pedido(s)? Não pode ser desfeito.`)) return;
+    setBusy(true);
+    try {
+      await deleteOrders(cods);
+      setSelected(new Set());
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function apagarTudo() {
+    if (!confirm(`Apagar TODOS os ${orders.length} pedidos? Não pode ser desfeito.`)) return;
+    setBusy(true);
+    try {
+      await deleteAll();
+      setSelected(new Set());
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div>
       <div className="mb-5">
-        <h3 className="font-display text-[18px] font-bold text-ink">Pedidos LPQV</h3>
+        <h3 className="font-display text-[18px] font-bold text-ink">Pedidos</h3>
         <p className="mt-1 text-[13px] text-muted">
-          Visão consolidada dos pedidos vinculados à conta LPQV.
+          Todos os pedidos importados/recebidos, com filtros rápidos e ações.
         </p>
       </div>
 
-      {/* Stat cards */}
+      {/* Cartões de resumo */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map(({ icon: Icon, label, value, tint }) => (
-          <div
-            key={label}
-            className="rounded-2xl border border-line bg-white p-[18px]"
-          >
+          <div key={label} className="rounded-2xl border border-line bg-white p-[18px]">
             <span
               className="flex h-10 w-10 items-center justify-center rounded-xl"
               style={{ background: `${tint}1A` }}
             >
               <Icon size={20} color={tint} />
             </span>
-            <div className="mt-3 font-display text-[28px] font-extrabold text-ink">
-              {value}
-            </div>
+            <div className="mt-3 font-display text-[24px] font-extrabold text-ink">{value}</div>
             <div className="text-[12.5px] text-muted">{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filter chips */}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {FILTERS.map((f) => {
-          const active = f.key === filter;
-          return (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`rounded-full px-[15px] py-[8px] text-[13px] font-semibold transition-colors ${
-                active
-                  ? "bg-brand text-white"
-                  : "border border-field bg-white text-muted hover:text-brand"
-              }`}
-            >
-              {f.label}
-            </button>
-          );
-        })}
+      {/* Filtros + busca */}
+      <div className="mt-6 flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const active = f.key === filter;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`rounded-full px-[14px] py-[7px] text-[12.5px] font-semibold transition-colors ${
+                  active
+                    ? "bg-brand text-white"
+                    : "border border-field bg-white text-muted hover:text-brand"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-[9px] rounded-[11px] border-[1.5px] border-field bg-white px-[14px] py-[10px] sm:max-w-[340px]">
+          <Search size={16} color="#9A8FB0" className="flex-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar cliente, CPF, nº do pedido, código…"
+            className="w-full bg-transparent text-[13px] text-ink outline-none"
+          />
+        </div>
       </div>
 
-      {/* Orders list */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {filtered.map((o) => {
-          const label = currentStatusLabel(o);
-          const badge = statusBadge(label);
-          return (
-            <div
-              key={o.codigo}
-              className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-[18px]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-display text-[15px] font-bold text-ink">
-                    {o.cliente}
-                  </div>
-                  <div className="mt-[2px] text-[12.5px] font-semibold text-muted">
-                    {o.codigo}
-                  </div>
-                </div>
-                <span
-                  className="whitespace-nowrap rounded-full px-[11px] py-[5px] text-[11.5px] font-bold"
-                  style={{ background: badge.bg, color: badge.fg }}
-                >
-                  {label}
-                </span>
-              </div>
-              <div className="flex items-center gap-[6px] text-[13px] text-ink">
-                <MapPin size={15} color="#9A8FB0" className="flex-none" />
-                {o.origem || "Origem"} <span className="text-faint">→</span>{" "}
-                {[o.cidade, o.uf].filter(Boolean).join(" / ") || "destino"}
-              </div>
-              <div className="flex items-center justify-between border-t border-[#F1ECF8] pt-3">
-                <span className="text-[12.5px] text-muted">
-                  {o.previsao ? `Previsão: ${o.previsao}` : o.data || ""}
-                </span>
-                <Link
-                  to={`/rastrear?codigo=${encodeURIComponent(o.codigo)}`}
-                  className="text-[13px] font-bold text-brand-mid no-underline"
-                >
-                  Rastrear →
-                </Link>
-              </div>
-            </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-field bg-white py-12 text-center text-[13.5px] text-muted">
-            Nenhum pedido neste filtro.
-          </div>
-        )}
+      {/* Ações em massa */}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          onClick={enviar}
+          disabled={busy || selected.size === 0}
+          className="flex items-center gap-2 rounded-[10px] bg-brand-mid px-[14px] py-[9px] text-[13px] font-bold text-white disabled:opacity-40"
+        >
+          <Mail size={15} color="#fff" /> Enviar e-mail ({selected.size})
+        </button>
+        <button
+          onClick={apagarSel}
+          disabled={busy || selected.size === 0}
+          className="flex items-center gap-2 rounded-[10px] bg-[#C2410C] px-[14px] py-[9px] text-[13px] font-bold text-white disabled:opacity-40"
+        >
+          <Trash size={15} color="#fff" /> Apagar selecionados ({selected.size})
+        </button>
+        <button
+          onClick={apagarTudo}
+          disabled={busy || orders.length === 0}
+          className="rounded-[10px] border-[1.5px] border-[#E0B4A0] bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#C2410C] disabled:opacity-40"
+        >
+          Apagar tudo
+        </button>
+        {msg && <span className="text-[13px] font-medium text-brand">{msg}</span>}
+      </div>
+
+      {/* Lista */}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13.5px]">
+            <thead>
+              <tr className="bg-brand-wash">
+                <th className="px-[16px] py-[13px] text-left">
+                  <input
+                    type="checkbox"
+                    aria-label="Selecionar todos"
+                    checked={allShownSelected}
+                    onChange={toggleAll}
+                    className="h-4 w-4 accent-[#7B2FBE]"
+                  />
+                </th>
+                {["Pedido", "Cliente", "Total", "Data", "Status", "E-mail", ""].map((c) => (
+                  <th
+                    key={c}
+                    className="whitespace-nowrap px-[16px] py-[13px] text-left text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-mid"
+                  >
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((o) => {
+                const label = currentStatusLabel(o);
+                const badge = statusBadge(label);
+                const sel = selected.has(o.codigo);
+                return (
+                  <tr
+                    key={o.codigo}
+                    className={`border-t border-[#F1ECF8] ${sel ? "bg-brand-tint/40" : ""}`}
+                  >
+                    <td className="px-[16px] py-[13px]">
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${o.codigo}`}
+                        checked={sel}
+                        onChange={() => toggle(o.codigo)}
+                        className="h-4 w-4 accent-[#7B2FBE]"
+                      />
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px]">
+                      <div className="font-semibold text-brand">
+                        {o.pedidoRef || o.codigo}
+                      </div>
+                      <div className="text-[11.5px] text-faint">{o.codigo}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px] font-semibold text-ink">
+                      {o.cliente}
+                      <div className="text-[11.5px] font-normal text-faint">
+                        {o.cidade ? `${o.cidade}/${o.uf ?? ""}` : o.cpf || ""}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px] tabular-nums text-ink">
+                      {o.valorTotal ? brl(money(o.valorTotal)) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px] text-muted">
+                      {o.data || "—"}
+                    </td>
+                    <td className="px-[16px] py-[13px]">
+                      <span
+                        className="whitespace-nowrap rounded-full px-[11px] py-[5px] text-[12px] font-bold"
+                        style={{ background: badge.bg, color: badge.fg }}
+                      >
+                        {label}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px]">
+                      {o.emailEnviadoEm ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F5E3] px-[9px] py-[4px] text-[11.5px] font-bold text-[#1F8A5B]">
+                          <Check size={12} color="#1F8A5B" strokeWidth={3} /> enviado
+                        </span>
+                      ) : o.email ? (
+                        <span className="text-[12px] text-[#C2410C]">a notificar</span>
+                      ) : (
+                        <span className="text-[12px] text-faint">sem e-mail</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px] text-right">
+                      <Link
+                        to={`/rastrear?codigo=${encodeURIComponent(o.codigo)}`}
+                        target="_blank"
+                        className="font-bold text-brand-mid no-underline"
+                      >
+                        Visualizar
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr className="border-t border-[#F1ECF8]">
+                  <td colSpan={8} className="px-4 py-10 text-center text-[13.5px] text-muted">
+                    {loading ? "Carregando…" : "Nenhum pedido neste filtro."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

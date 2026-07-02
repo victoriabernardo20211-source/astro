@@ -168,7 +168,8 @@ export interface ImportOutcome {
 export async function importOrders(
   rows: NewOrderRow[],
   mode: "merge" | "replace",
-  name: string
+  name: string,
+  logImport = true
 ): Promise<ImportOutcome> {
   const db = await getDb();
   const codes = [...new Set(rows.map((r) => r.codigo))];
@@ -198,7 +199,9 @@ export async function importOrders(
     await db.insert(orders).values(part);
   }
 
-  await db.insert(imports).values({ name, count: rows.length, added, mode });
+  if (logImport) {
+    await db.insert(imports).values({ name, count: rows.length, added, mode });
+  }
   return { count: rows.length, added, addedRows };
 }
 
