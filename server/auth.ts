@@ -1,15 +1,20 @@
 /**
- * Minimal admin auth for the import panel. Credentials and token come from
- * environment variables in production; the defaults keep local dev working.
+ * Minimal admin auth for the import panel. Credentials e token vêm de
+ * variáveis de ambiente. Em produção (Vercel), se ADMIN_USER/ADMIN_PASSWORD
+ * não forem definidos, o login fica DESATIVADO (nunca cai num usuário/senha
+ * padrão público) — o único fallback "berlim/123456" é para rodar local
+ * (npm run dev), quando não há POSTGRES_URL nem VERCEL setados.
  */
-const ADMIN_USER = process.env.ADMIN_USER || "berlim";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "123456";
+const isProd = !!process.env.VERCEL || !!process.env.POSTGRES_URL;
+const ADMIN_USER = process.env.ADMIN_USER || (isProd ? "" : "berlim");
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (isProd ? "" : "123456");
 
 /** The bearer token handed out on login and required by admin endpoints. */
 export const ADMIN_TOKEN =
-  process.env.ADMIN_TOKEN || `astro-${ADMIN_PASSWORD}`;
+  process.env.ADMIN_TOKEN || (ADMIN_PASSWORD ? `astro-${ADMIN_PASSWORD}` : "");
 
 export function verifyLogin(user: unknown, password: unknown): boolean {
+  if (!ADMIN_USER || !ADMIN_PASSWORD) return false; // não configurado: ninguém entra
   return (
     typeof user === "string" &&
     typeof password === "string" &&

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Cube, Plus } from "@/components/icons";
-import { isAuthenticated, logout, DEMO_CREDENTIALS } from "@/lib/auth";
+import { isAuthenticated, logout, ADMIN_PROFILE } from "@/lib/auth";
+import { LOGIN_PATH } from "@/lib/admin-path";
 import { AdminDataProvider } from "@/lib/admin-store";
 import TrackingsTab from "@/components/dashboard/TrackingsTab";
 import UploadTab from "@/components/dashboard/UploadTab";
@@ -34,7 +35,7 @@ export default function PainelPage() {
     if (isAuthenticated()) {
       setAuthed(true);
     } else {
-      navigate("/login", { replace: true });
+      navigate(LOGIN_PATH, { replace: true });
     }
   }, [navigate]);
 
@@ -44,7 +45,7 @@ export default function PainelPage() {
     <AdminDataProvider
       onUnauthorized={() => {
         logout();
-        navigate("/login", { replace: true });
+        navigate(LOGIN_PATH, { replace: true });
       }}
     >
       <main className="min-h-screen bg-brand-wash text-ink">
@@ -58,7 +59,7 @@ export default function PainelPage() {
             Painel do Cliente{" "}
             <span className="mx-1 font-normal opacity-50">·</span>{" "}
             <span className="font-medium opacity-[0.82]">
-              Bem-vindo, {DEMO_CREDENTIALS.displayName}
+              Bem-vindo, {ADMIN_PROFILE.displayName}
             </span>
           </div>
         </div>
@@ -73,7 +74,7 @@ export default function PainelPage() {
           <button
             onClick={() => {
               logout();
-              navigate("/login");
+              navigate(LOGIN_PATH);
             }}
             className="rounded-[11px] border-[1.5px] border-white/40 bg-transparent px-[18px] py-[11px] text-[13.5px] font-semibold text-white"
           >

@@ -1,10 +1,9 @@
 import { adminLogin, clearToken, isAuthenticated } from "./api";
 
-/** Demo credentials prefilled on the login screen / shown in the panel. */
-export const DEMO_CREDENTIALS = {
-  user: "berlim",
-  password: "123456",
-  displayName: "BERLIM",
+/** Rótulos exibidos no painel (não usados para autenticar — isso é 100% no servidor). */
+export const ADMIN_PROFILE = {
+  user: "admin",
+  displayName: "Admin",
 };
 
 /** Authenticates against the API; stores the token on success. */

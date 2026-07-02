@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout, DEMO_CREDENTIALS } from "@/lib/auth";
+import { logout, ADMIN_PROFILE } from "@/lib/auth";
+import { LOGIN_PATH } from "@/lib/admin-path";
 import { User, Mail, Phone, Bell, Lock } from "@/components/icons";
 
 const PREFS_KEY = "astro-fretes:prefs";
@@ -111,11 +112,11 @@ export default function ContaTab() {
       {/* Profile header */}
       <div className="mt-5 flex items-center gap-4 rounded-2xl border border-line bg-white p-5">
         <span className="flex h-16 w-16 flex-none items-center justify-center rounded-2xl bg-brand font-display text-[22px] font-extrabold text-white">
-          {DEMO_CREDENTIALS.displayName.slice(0, 2)}
+          {ADMIN_PROFILE.displayName.slice(0, 2)}
         </span>
         <div>
           <div className="font-display text-[18px] font-bold text-ink">
-            {DEMO_CREDENTIALS.displayName}
+            {ADMIN_PROFILE.displayName}
           </div>
           <div className="text-[13px] text-muted">Conta LPQV · Cliente corporativo</div>
           <span className="mt-2 inline-block rounded-full bg-[#D8F5E3] px-[10px] py-[3px] text-[11.5px] font-bold text-[#1F8A5B]">
@@ -126,7 +127,7 @@ export default function ContaTab() {
 
       {/* Account fields */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Field icon={User} label="Usuário" value={DEMO_CREDENTIALS.user} />
+        <Field icon={User} label="Usuário" value={ADMIN_PROFILE.user} />
         <Field icon={Mail} label="E-mail" value="contato@lpqv.com.br" />
         <Field icon={Phone} label="Telefone" value="(11) 4002-8922" />
         <Field icon={Lock} label="Plano" value="Logística Empresarial" />
@@ -154,7 +155,7 @@ export default function ContaTab() {
         <button
           onClick={() => {
             logout();
-            navigate("/login");
+            navigate(LOGIN_PATH);
           }}
           className="rounded-xl bg-brand px-[18px] py-[11px] text-[13.5px] font-bold text-white"
         >

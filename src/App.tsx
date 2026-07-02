@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 import RastrearPage from "./pages/RastrearPage";
 import LoginPage from "./pages/LoginPage";
 import PainelPage from "./pages/PainelPage";
+import { LOGIN_PATH, PAINEL_PATH } from "./lib/admin-path";
 
 /** Scroll to top on route change (and to a #hash target when present). */
 function ScrollManager() {
@@ -30,8 +31,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/rastrear" element={<RastrearPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/painel" element={<PainelPage />} />
+        <Route path={LOGIN_PATH} element={<LoginPage />} />
+        <Route path={PAINEL_PATH} element={<PainelPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
     </>

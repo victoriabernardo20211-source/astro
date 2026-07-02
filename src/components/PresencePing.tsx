@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { LOGIN_PATH } from "@/lib/admin-path";
 
 function sessionId(): string {
   try {
@@ -23,8 +24,8 @@ export default function PresencePing() {
   pathRef.current = pathname;
 
   useEffect(() => {
-    // não conta o próprio admin como visitante
-    if (pathname.startsWith("/painel") || pathname.startsWith("/login")) return;
+    // não conta o próprio admin como visitante (PAINEL_PATH começa com LOGIN_PATH)
+    if (pathname.startsWith(LOGIN_PATH)) return;
 
     const ping = () => {
       fetch("/api/presence", {

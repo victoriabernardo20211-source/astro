@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock } from "@/components/icons";
-import { login, DEMO_CREDENTIALS } from "@/lib/auth";
+import { login } from "@/lib/auth";
+import { PAINEL_PATH } from "@/lib/admin-path";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(DEMO_CREDENTIALS.user);
-  const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
+  const [user, setUser] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -16,7 +17,7 @@ export default function LoginPage() {
     setError("");
     try {
       if (await login(user, password)) {
-        navigate("/painel");
+        navigate(PAINEL_PATH);
       } else {
         setError("Usuário ou senha inválidos.");
       }
