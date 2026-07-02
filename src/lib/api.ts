@@ -96,10 +96,20 @@ export async function importCsv(
   return data as ImportResult;
 }
 
-export async function resetToDemo(): Promise<void> {
-  const res = await fetch("/api/admin/reset", {
+export async function deleteOrders(codigos: string[]): Promise<void> {
+  const res = await fetch("/api/admin/delete", {
     method: "POST",
-    headers: authHeaders(),
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ codigos }),
   });
-  if (!res.ok) throw new Error("Falha ao restaurar os dados.");
+  if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
+}
+
+export async function deleteAllOrders(): Promise<void> {
+  const res = await fetch("/api/admin/delete", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ all: true }),
+  });
+  if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
 }

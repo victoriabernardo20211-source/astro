@@ -37,8 +37,11 @@ export function statusIndex(status: string): number {
 }
 
 function parseOrderDate(order: Order): Date | null {
-  if (!order.dataPedido) return null;
-  const d = new Date(order.dataPedido);
+  // usa a data real do pedido; se faltar (imports antigos), a data em que
+  // entrou no sistema (createdAt), pra nunca inventar data.
+  const raw = order.dataPedido || order.createdAt;
+  if (!raw) return null;
+  const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
 

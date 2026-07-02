@@ -104,58 +104,12 @@ async function ensureSchema(db: DB) {
   `);
 }
 
-/** A few demo orders so tracking works before the first real import. */
-const DEMO: schema.NewOrderRow[] = [
-  {
-    codigo: "AF-2847193-BR",
-    cpf: "304.118.756-09",
-    cliente: "Mariana Castro",
-    status: "Em rota",
-    cidade: "Salvador",
-    uf: "BA",
-    origem: "São Paulo / SP",
-    produto: "Pedido demonstração",
-    data: "15 jun 2026",
-    previsao: "Hoje, até 18h",
-  },
-  {
-    codigo: "AF-2846783-BR",
-    cpf: "203.776.998-50",
-    cliente: "Lucas Pereira",
-    status: "Entregue",
-    cidade: "Belo Horizonte",
-    uf: "MG",
-    origem: "São Paulo / SP",
-    produto: "Pedido demonstração",
-    data: "13 jun 2026",
-    previsao: "Entregue",
-  },
-  {
-    codigo: "AF-2847055-BR",
-    cpf: "512.903.447-21",
-    cliente: "Rafael Nogueira",
-    status: "Em trânsito",
-    cidade: "Curitiba",
-    uf: "PR",
-    origem: "São Paulo / SP",
-    produto: "Pedido demonstração",
-    data: "14 jun 2026",
-    previsao: "16 jun, até 18h",
-  },
-];
-
-/** Inserts the demo orders, skipping any code that already exists. */
-export async function seedDemo(db: DB) {
-  await db.insert(schema.orders).values(DEMO).onConflictDoNothing();
-}
-
-/** Memoized, schema-ensured database handle (seeded on first creation). */
+/** Memoized, schema-ensured database handle. */
 export async function getDb(): Promise<DB> {
   if (!dbPromise) {
     dbPromise = (async () => {
       const db = await create();
       await ensureSchema(db);
-      await seedDemo(db);
       return db;
     })();
   }

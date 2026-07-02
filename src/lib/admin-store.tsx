@@ -20,7 +20,8 @@ interface AdminContextValue {
     mode: "merge" | "replace",
     name: string
   ) => Promise<api.ImportResult>;
-  reset: () => Promise<void>;
+  deleteOrders: (codigos: string[]) => Promise<void>;
+  deleteAll: () => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -70,14 +71,32 @@ export function AdminDataProvider({
     [refresh]
   );
 
-  const reset = useCallback(async () => {
-    await api.resetToDemo();
+  const deleteOrders = useCallback(
+    async (codigos: string[]) => {
+      await api.deleteOrders(codigos);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const deleteAll = useCallback(async () => {
+    await api.deleteAllOrders();
     await refresh();
   }, [refresh]);
 
   return (
     <AdminContext.Provider
-      value={{ orders, imports, lookups, loading, error, refresh, importCsv, reset }}
+      value={{
+        orders,
+        imports,
+        lookups,
+        loading,
+        error,
+        refresh,
+        importCsv,
+        deleteOrders,
+        deleteAll,
+      }}
     >
       {children}
     </AdminContext.Provider>

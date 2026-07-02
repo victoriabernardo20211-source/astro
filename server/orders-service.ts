@@ -1,5 +1,5 @@
 import { or, sql, desc, inArray } from "drizzle-orm";
-import { getDb, schema, seedDemo } from "./db.js";
+import { getDb, schema } from "./db.js";
 import type { NewOrderRow, OrderRow, ImportRow, LookupRow } from "./schema.js";
 
 const { orders, imports, lookups } = schema;
@@ -91,19 +91,27 @@ export async function importOrders(
 ): Promise<ImportOutcome> {
   const db = await getDb();
   const codes = [...new Set(rows.map((r) => r.codigo))];
+  const cpfs = [...new Set(rows.map((r) => r.cpf).filter(Boolean))] as string[];
 
-  const existing = new Set(
-    (await db.select({ c: orders.codigo }).from(orders)).map((r) => r.c)
-  );
+  // pedidos já existentes, por código e por CPF (para não duplicar o mesmo CPF)
+  const existingRows = await db
+    .select({ c: orders.codigo, p: orders.cpf })
+    .from(orders);
+  const existCodes = new Set(existingRows.map((r) => r.c));
+  const existCpfs = new Set(existingRows.map((r) => r.p).filter(Boolean));
   const added =
     mode === "replace"
       ? rows.length
-      : rows.filter((r) => !existing.has(r.codigo)).length;
+      : rows.filter(
+          (r) => !(existCodes.has(r.codigo) || (r.cpf && existCpfs.has(r.cpf)))
+        ).length;
 
   if (mode === "replace") {
     await db.delete(orders);
-  } else if (codes.length) {
-    await db.delete(orders).where(inArray(orders.codigo, codes));
+  } else {
+    // remove os que serão reinseridos — por código E por CPF (junta em um)
+    if (codes.length) await db.delete(orders).where(inArray(orders.codigo, codes));
+    if (cpfs.length) await db.delete(orders).where(inArray(orders.cpf, cpfs));
   }
 
   for (const part of chunk(rows, 200)) {
@@ -114,11 +122,16 @@ export async function importOrders(
   return { count: rows.length, added };
 }
 
-/** Wipes all data and restores the bundled demo orders. */
-export async function resetToDemo(): Promise<void> {
+/** Apaga os pedidos com os códigos informados. Retorna quantos foram pedidos. */
+export async function deleteOrders(codigos: string[]): Promise<number> {
+  if (!codigos.length) return 0;
+  const db = await getDb();
+  await db.delete(orders).where(inArray(orders.codigo, codigos));
+  return codigos.length;
+}
+
+/** Apaga TODOS os pedidos (mantém histórico de imports e acessos). */
+export async function deleteAllOrders(): Promise<void> {
   const db = await getDb();
   await db.delete(orders);
-  await db.delete(imports);
-  await db.delete(lookups);
-  await seedDemo(db);
 }

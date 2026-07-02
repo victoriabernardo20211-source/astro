@@ -271,8 +271,11 @@ export function parseLpqvCsv(text: string): ParseResult {
     const generated = generateTrackingCode(pedidoRef || codigoSimples || cpf);
     const codigo = codigoRastreioCsv || codigoSimples || generated;
 
-    // de-dup dentro do arquivo (pedidos repetem por item)
-    const key = pedidoRef || codigo || cpf;
+    // de-dup dentro do arquivo: um pedido por CPF (junta tudo em um). O export
+    // vem do mais novo pro mais antigo, então a 1ª ocorrência = pedido mais
+    // recente daquele CPF. Sem CPF, cai pro código/nº do pedido.
+    const cpfDigits = cpf.replace(/\D/g, "");
+    const key = cpfDigits || codigo || pedidoRef;
     if (seen.has(key)) continue;
     seen.add(key);
 

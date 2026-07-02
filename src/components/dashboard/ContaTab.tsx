@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdmin } from "@/lib/admin-store";
 import { logout, DEMO_CREDENTIALS } from "@/lib/auth";
-import { User, Mail, Phone, Bell, Refresh, Lock } from "@/components/icons";
+import { User, Mail, Phone, Bell, Lock } from "@/components/icons";
 
 const PREFS_KEY = "astro-fretes:prefs";
 
@@ -86,9 +85,7 @@ function Toggle({
 
 export default function ContaTab() {
   const navigate = useNavigate();
-  const { reset: resetData } = useAdmin();
   const [prefs, setPrefs] = useState<Prefs>({ emailUpdates: true, smsUpdates: false });
-  const [reset, setReset] = useState(false);
 
   useEffect(() => setPrefs(loadPrefs()), []);
 
@@ -155,15 +152,6 @@ export default function ContaTab() {
       {/* Actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
-          onClick={async () => {
-            await resetData();
-            setReset(true);
-          }}
-          className="flex items-center gap-2 rounded-xl border-[1.5px] border-field bg-white px-[18px] py-[11px] text-[13.5px] font-semibold text-ink"
-        >
-          <Refresh size={16} color="#7B2FBE" /> Restaurar dados de exemplo
-        </button>
-        <button
           onClick={() => {
             logout();
             navigate("/login");
@@ -172,11 +160,6 @@ export default function ContaTab() {
         >
           Encerrar sessão
         </button>
-        {reset && (
-          <span className="text-[13px] font-medium text-[#1F8A5B]">
-            Base restaurada para os dados de exemplo.
-          </span>
-        )}
       </div>
     </div>
   );

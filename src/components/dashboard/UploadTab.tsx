@@ -4,7 +4,7 @@ import { CSV_TEMPLATE } from "@/lib/csv";
 import { Upload, FileText, Check, Info } from "@/components/icons";
 
 export default function UploadTab() {
-  const { importCsv, reset } = useAdmin();
+  const { importCsv } = useAdmin();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState("");
@@ -188,17 +188,6 @@ export default function UploadTab() {
         </div>
       )}
 
-      <button
-        onClick={async () => {
-          await reset();
-          clear();
-          setMessage("Dados de exemplo restaurados.");
-        }}
-        disabled={busy}
-        className="mt-6 block text-[13px] font-semibold text-faint underline disabled:opacity-60"
-      >
-        Restaurar dados de exemplo
-      </button>
     </div>
   );
 }
