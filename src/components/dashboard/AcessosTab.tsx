@@ -1,8 +1,23 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import type { Lookup } from "@/lib/types";
 import { useAdmin } from "@/lib/admin-store";
 import { Smartphone, Monitor, Search, Check, Info } from "@/components/icons";
 
 const COLUMNS = ["Quando", "Dispositivo", "Sistema", "Navegador", "Consulta", "Pedido", "IP"];
+
+const isDesktopOs = (l: Lookup) => /windows|mac|linux/i.test(l.os || "");
+const isAndroid = (l: Lookup) => /android/i.test(l.os || l.device || "");
+const isIos = (l: Lookup) =>
+  /ios|ipados|iphone|ipad/i.test((l.os || "") + " " + (l.device || ""));
+
+const FILTERS: Array<{ key: string; label: string; test: (l: Lookup) => boolean }> = [
+  { key: "todos", label: "Todos", test: () => true },
+  { key: "android", label: "Android", test: isAndroid },
+  { key: "ios", label: "iOS (iPhone)", test: isIos },
+  { key: "desktop", label: "Computador", test: isDesktopOs },
+  { key: "found", label: "Encontradas", test: (l) => !!l.found },
+  { key: "notfound", label: "Não encontradas", test: (l) => !l.found },
+];
 
 function when(iso?: string | null): string {
   if (!iso) return "—";
@@ -12,6 +27,22 @@ function when(iso?: string | null): string {
 
 export default function AcessosTab() {
   const { lookups, loading } = useAdmin();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("todos");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const test = FILTERS.find((f) => f.key === filter)?.test ?? (() => true);
+    return lookups.filter((l) => {
+      if (!test(l)) return false;
+      if (!q) return true;
+      return [l.query, l.codigo, l.cliente, l.ip, l.device, l.os, l.browser]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [lookups, query, filter]);
 
   const stats = useMemo(() => {
     const total = lookups.length;
@@ -32,9 +63,6 @@ export default function AcessosTab() {
     { icon: Info, label: "Não encontradas", value: stats.notFound, tint: "#C2410C" },
     { icon: Smartphone, label: "Marca mais comum", value: stats.topBrand, tint: "#6B23B0" },
   ];
-
-  const isDesktop = (l: { os?: string | null }) =>
-    /windows|mac|linux/i.test(l.os || "");
 
   return (
     <div>
@@ -64,8 +92,39 @@ export default function AcessosTab() {
         ))}
       </div>
 
+      {/* Busca + filtros */}
+      <div className="mt-6 flex flex-col gap-3">
+        <div className="flex items-center gap-[9px] rounded-[11px] border-[1.5px] border-field bg-white px-[14px] py-[10px] sm:max-w-[360px]">
+          <Search size={16} color="#9A8FB0" className="flex-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por CPF, código, nº do pedido, cliente ou IP…"
+            className="w-full bg-transparent text-[13px] text-ink outline-none"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const active = f.key === filter;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`rounded-full px-[14px] py-[7px] text-[12.5px] font-semibold transition-colors ${
+                  active
+                    ? "bg-brand text-white"
+                    : "border border-field bg-white text-muted hover:text-brand"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Lookups table */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
@@ -81,14 +140,14 @@ export default function AcessosTab() {
               </tr>
             </thead>
             <tbody>
-              {lookups.map((l) => (
+              {filtered.map((l) => (
                 <tr key={l.id} className="border-t border-[#F1ECF8]">
                   <td className="whitespace-nowrap px-[16px] py-[13px] text-muted">
                     {when(l.createdAt)}
                   </td>
                   <td className="whitespace-nowrap px-[16px] py-[13px]">
                     <span className="flex items-center gap-2 font-semibold text-ink">
-                      {isDesktop(l) ? (
+                      {isDesktopOs(l) ? (
                         <Monitor size={16} color="#7B2FBE" />
                       ) : (
                         <Smartphone size={16} color="#7B2FBE" />
@@ -126,7 +185,7 @@ export default function AcessosTab() {
                   </td>
                 </tr>
               ))}
-              {lookups.length === 0 && (
+              {filtered.length === 0 && (
                 <tr className="border-t border-[#F1ECF8]">
                   <td
                     colSpan={COLUMNS.length}
@@ -134,7 +193,9 @@ export default function AcessosTab() {
                   >
                     {loading
                       ? "Carregando…"
-                      : "Nenhuma consulta registrada ainda. Assim que alguém rastrear um pedido, o dispositivo aparece aqui."}
+                      : lookups.length === 0
+                        ? "Nenhuma consulta registrada ainda. Assim que alguém rastrear um pedido, o dispositivo aparece aqui."
+                        : "Nenhum acesso para essa busca/filtro."}
                   </td>
                 </tr>
               )}
