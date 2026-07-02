@@ -160,6 +160,31 @@ export function buildTimeline(order: Order): TimelineStep[] {
   });
 }
 
+/** Situação do pagamento, a partir do status vindo da loja (LPQV). */
+export function paymentStatus(order: Order): "pago" | "pendente" | "cancelado" {
+  const s = `${order.statusPagamento ?? ""} ${order.statusEnvio ?? ""}`.toLowerCase();
+  if (/cancel|refus|recus|estorn|charge|chargeback|expir|reembol|devolv/.test(s))
+    return "cancelado";
+  if (/aprov|paid|pago|accept|realizad|authoriz|autoriz|approv|complete/.test(s))
+    return "pago";
+  if (/aguard|wait|pending|pendente|analise|unpaid|aberto|nao pago/.test(s))
+    return "pendente";
+  // sem pista no pagamento: se o rastreio ainda está em "Pedido recebido",
+  // trata como pendente (pagos avançam para "Em separação"); senão, pago.
+  return statusIndex(order.status || "") === 0 ? "pendente" : "pago";
+}
+
+/** Cores do selo de pagamento. */
+export function paymentBadge(p: "pago" | "pendente" | "cancelado"): {
+  bg: string;
+  fg: string;
+  label: string;
+} {
+  if (p === "pago") return { bg: "#D8F5E3", fg: "#1F8A5B", label: "Pago" };
+  if (p === "cancelado") return { bg: "#FBD9D0", fg: "#B23B23", label: "Cancelado" };
+  return { bg: "#FBECCB", fg: "#9A6A00", label: "Pendente" };
+}
+
 /** Status → badge colors used in the dashboard table. */
 export function statusBadge(status: string): { bg: string; fg: string } {
   if (statusIndex(status) === 7) {

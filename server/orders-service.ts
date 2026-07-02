@@ -9,9 +9,19 @@ export interface SendEmailsResult {
   sent: number;
   already: number; // já tinham recebido (não reenviado)
   noEmail: number; // pedido sem e-mail
+  naoPago: number; // pendente/cancelado — não notifica
   failed: number;
   skipped: number; // acima do limite por operação
   mailConfigured: boolean;
+}
+
+/** Pedido pago? (não notifica pendentes/cancelados). Desconhecido conta como pago. */
+function isPaidRow(o: { statusPagamento?: string | null; statusEnvio?: string | null; status?: string | null }): boolean {
+  const s = `${o.statusPagamento ?? ""} ${o.statusEnvio ?? ""}`.toLowerCase();
+  if (/cancel|refus|recus|estorn|charge|expir|reembol|devolv/.test(s)) return false;
+  if (/aprov|paid|pago|accept|realizad|authoriz|autoriz|approv|complete/.test(s)) return true;
+  if (/aguard|wait|pending|pendente|analise|unpaid|aberto/.test(s)) return false;
+  return (o.status || "") !== "Pedido recebido";
 }
 
 const MAX_EMAILS = 300;
@@ -26,18 +36,23 @@ export async function sendOrderEmails(
   force = false
 ): Promise<SendEmailsResult> {
   if (!isMailConfigured())
-    return { sent: 0, already: 0, noEmail: 0, failed: 0, skipped: 0, mailConfigured: false };
+    return { sent: 0, already: 0, noEmail: 0, naoPago: 0, failed: 0, skipped: 0, mailConfigured: false };
 
   const db = await getDb();
   const codes = [...new Set(codigos)];
   if (!codes.length)
-    return { sent: 0, already: 0, noEmail: 0, failed: 0, skipped: 0, mailConfigured: true };
+    return { sent: 0, already: 0, noEmail: 0, naoPago: 0, failed: 0, skipped: 0, mailConfigured: true };
 
   const rows = await db.select().from(orders).where(inArray(orders.codigo, codes));
 
   let already = 0;
   let noEmail = 0;
+  let naoPago = 0;
   const candidates = rows.filter((o) => {
+    if (!isPaidRow(o)) {
+      naoPago++; // pendente/cancelado não recebe notificação
+      return false;
+    }
     if (!o.email) {
       noEmail++;
       return false;
@@ -77,6 +92,7 @@ export async function sendOrderEmails(
     sent,
     already,
     noEmail,
+    naoPago,
     failed,
     skipped: candidates.length - list.length,
     mailConfigured: true,

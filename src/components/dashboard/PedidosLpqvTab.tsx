@@ -2,7 +2,13 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/lib/admin-store";
 import type { Order } from "@/lib/types";
-import { statusBadge, statusIndex, currentStatusLabel } from "@/lib/data";
+import {
+  statusBadge,
+  statusIndex,
+  currentStatusLabel,
+  paymentStatus,
+  paymentBadge,
+} from "@/lib/data";
 import { Search, Mail, Trash, Package, Check, Bell } from "@/components/icons";
 
 function money(s?: string | null): number {
@@ -26,7 +32,9 @@ function orderDay(o: Order): string {
 }
 
 const isToday = (o: Order) => orderDay(o) === localToday();
-const aNotificar = (o: Order) => !!o.email && !o.emailEnviadoEm;
+const pago = (o: Order) => paymentStatus(o) === "pago";
+// só notifica PAGOS, com e-mail e ainda não enviados
+const aNotificar = (o: Order) => pago(o) && !!o.email && !o.emailEnviadoEm;
 const notificado = (o: Order) => !!o.emailEnviadoEm;
 const entregue = (o: Order) => statusIndex(o.status || "") === 7;
 const emTransporte = (o: Order) => {
@@ -37,6 +45,9 @@ const emTransporte = (o: Order) => {
 const FILTERS: Array<{ key: string; label: string; test: (o: Order) => boolean }> = [
   { key: "todos", label: "Todos", test: () => true },
   { key: "hoje", label: "Novos do dia", test: isToday },
+  { key: "pagos", label: "Pagos", test: pago },
+  { key: "pendentes", label: "Pendentes", test: (o) => paymentStatus(o) === "pendente" },
+  { key: "cancelados", label: "Cancelados", test: (o) => paymentStatus(o) === "cancelado" },
   { key: "notificar", label: "A notificar", test: aNotificar },
   { key: "notificados", label: "Notificados", test: notificado },
   { key: "transporte", label: "Em transporte", test: emTransporte },
@@ -107,6 +118,7 @@ export default function PedidosLpqvTab() {
       else {
         const p = [`${r.sent} enviado(s)`];
         if (r.already) p.push(`${r.already} já enviados`);
+        if (r.naoPago) p.push(`${r.naoPago} não pago(s)`);
         if (r.noEmail) p.push(`${r.noEmail} sem e-mail`);
         setMsg(p.join(" · "));
       }
@@ -237,7 +249,7 @@ export default function PedidosLpqvTab() {
                     className="h-4 w-4 accent-[#7B2FBE]"
                   />
                 </th>
-                {["Pedido", "Cliente", "Total", "Data", "Status", "E-mail", ""].map((c) => (
+                {["Pedido", "Cliente", "Total", "Data", "Pagamento", "Status", "E-mail", ""].map((c) => (
                   <th
                     key={c}
                     className="whitespace-nowrap px-[16px] py-[13px] text-left text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-mid"
@@ -251,6 +263,7 @@ export default function PedidosLpqvTab() {
               {filtered.map((o) => {
                 const label = currentStatusLabel(o);
                 const badge = statusBadge(label);
+                const pay = paymentBadge(paymentStatus(o));
                 const sel = selected.has(o.codigo);
                 return (
                   <tr
@@ -287,6 +300,14 @@ export default function PedidosLpqvTab() {
                     <td className="px-[16px] py-[13px]">
                       <span
                         className="whitespace-nowrap rounded-full px-[11px] py-[5px] text-[12px] font-bold"
+                        style={{ background: pay.bg, color: pay.fg }}
+                      >
+                        {pay.label}
+                      </span>
+                    </td>
+                    <td className="px-[16px] py-[13px]">
+                      <span
+                        className="whitespace-nowrap rounded-full px-[11px] py-[5px] text-[12px] font-bold"
                         style={{ background: badge.bg, color: badge.fg }}
                       >
                         {label}
@@ -297,6 +318,8 @@ export default function PedidosLpqvTab() {
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F5E3] px-[9px] py-[4px] text-[11.5px] font-bold text-[#1F8A5B]">
                           <Check size={12} color="#1F8A5B" strokeWidth={3} /> enviado
                         </span>
+                      ) : paymentStatus(o) !== "pago" ? (
+                        <span className="text-[12px] text-faint">—</span>
                       ) : o.email ? (
                         <span className="text-[12px] text-[#C2410C]">a notificar</span>
                       ) : (
@@ -317,7 +340,7 @@ export default function PedidosLpqvTab() {
               })}
               {filtered.length === 0 && (
                 <tr className="border-t border-[#F1ECF8]">
-                  <td colSpan={8} className="px-4 py-10 text-center text-[13.5px] text-muted">
+                  <td colSpan={9} className="px-4 py-10 text-center text-[13.5px] text-muted">
                     {loading ? "Carregando…" : "Nenhum pedido neste filtro."}
                   </td>
                 </tr>

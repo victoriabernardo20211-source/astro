@@ -113,6 +113,7 @@ export interface SendEmailsResult {
   sent: number;
   already: number;
   noEmail: number;
+  naoPago?: number;
   failed: number;
   skipped: number;
   mailConfigured: boolean;
