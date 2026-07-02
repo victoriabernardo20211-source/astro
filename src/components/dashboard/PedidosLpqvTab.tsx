@@ -9,7 +9,7 @@ import {
   paymentStatus,
   paymentBadge,
 } from "@/lib/data";
-import { Search, Mail, Trash, Package, Check, Bell } from "@/components/icons";
+import { Search, Mail, Trash, Package, Check, Bell, Download, Smartphone, Monitor } from "@/components/icons";
 
 function money(s?: string | null): number {
   if (!s) return 0;
@@ -52,7 +52,58 @@ const FILTERS: Array<{ key: string; label: string; test: (o: Order) => boolean }
   { key: "notificados", label: "Notificados", test: notificado },
   { key: "transporte", label: "Em transporte", test: emTransporte },
   { key: "entregues", label: "Entregues", test: entregue },
+  { key: "ios", label: "iOS", test: (o) => o.plataforma === "iOS" },
+  { key: "android", label: "Android", test: (o) => o.plataforma === "Android" },
 ];
+
+/** Cores do selo de plataforma (dispositivo usado para FAZER o pedido). */
+function platformBadge(p?: string | null): { bg: string; fg: string; label: string } {
+  if (p === "iOS") return { bg: "#E5E7EB", fg: "#111827", label: "iOS" };
+  if (p === "Android") return { bg: "#D8F5E3", fg: "#1F8A5B", label: "Android" };
+  if (p === "Computador") return { bg: "#DBEAFE", fg: "#1D4ED8", label: "Computador" };
+  return { bg: "#F1F5F9", fg: "#64748B", label: p || "—" };
+}
+
+function toCsvValue(v: string | number | null | undefined): string {
+  const s = String(v ?? "");
+  return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Exporta os pedidos informados como CSV (separador ;) e dispara o download. */
+function exportCsv(rows: Order[], filename: string) {
+  const headers = [
+    "Pedido", "Cliente", "CPF", "Telefone", "Email", "Cidade", "UF",
+    "Status", "Pagamento", "Dispositivo", "Plataforma", "Data",
+  ];
+  const lines = [headers.join(";")];
+  for (const o of rows) {
+    lines.push(
+      [
+        o.pedidoRef || o.codigo,
+        o.cliente,
+        o.cpf || "",
+        o.telefone || "",
+        o.email || "",
+        o.cidade || "",
+        o.uf || "",
+        currentStatusLabel(o),
+        paymentBadge(paymentStatus(o)).label,
+        o.dispositivo || "",
+        o.plataforma || "",
+        o.data || "",
+      ]
+        .map(toCsvValue)
+        .join(";")
+    );
+  }
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function PedidosLpqvTab() {
   const { orders, loading, sendEmails, deleteOrders, deleteAll } = useAdmin();
@@ -67,7 +118,9 @@ export default function PedidosLpqvTab() {
     const novos = orders.filter(isToday).length;
     const notificar = orders.filter(aNotificar).length;
     const vendas = orders.reduce((s, o) => s + money(o.valorTotal), 0);
-    return { total, novos, notificar, vendas };
+    const ios = orders.filter((o) => o.plataforma === "iOS").length;
+    const android = orders.filter((o) => o.plataforma === "Android").length;
+    return { total, novos, notificar, vendas, ios, android };
   }, [orders]);
 
   const filtered = useMemo(() => {
@@ -234,6 +287,28 @@ export default function PedidosLpqvTab() {
         {msg && <span className="text-[13px] font-medium text-brand">{msg}</span>}
       </div>
 
+      {/* Exportar por dispositivo (quem fez o pedido pelo app iOS ou Android) */}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          onClick={() =>
+            exportCsv(orders.filter((o) => o.plataforma === "iOS"), "pedidos-ios.csv")
+          }
+          disabled={stats.ios === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-ink disabled:opacity-40"
+        >
+          <Download size={15} color="#111827" /> Baixar todos iOS ({stats.ios})
+        </button>
+        <button
+          onClick={() =>
+            exportCsv(orders.filter((o) => o.plataforma === "Android"), "pedidos-android.csv")
+          }
+          disabled={stats.android === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
+        >
+          <Download size={15} color="#1F8A5B" /> Baixar todos Android ({stats.android})
+        </button>
+      </div>
+
       {/* Lista */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
         <div className="overflow-x-auto">
@@ -249,7 +324,7 @@ export default function PedidosLpqvTab() {
                     className="h-4 w-4 accent-[#7B2FBE]"
                   />
                 </th>
-                {["Pedido", "Cliente", "Total", "Data", "Pagamento", "Status", "E-mail", ""].map((c) => (
+                {["Pedido", "Cliente", "Total", "Data", "Pagamento", "Status", "Dispositivo", "E-mail", ""].map((c) => (
                   <th
                     key={c}
                     className="whitespace-nowrap px-[16px] py-[13px] text-left text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-mid"
@@ -264,6 +339,7 @@ export default function PedidosLpqvTab() {
                 const label = currentStatusLabel(o);
                 const badge = statusBadge(label);
                 const pay = paymentBadge(paymentStatus(o));
+                const pf = platformBadge(o.plataforma);
                 const sel = selected.has(o.codigo);
                 return (
                   <tr
@@ -314,6 +390,28 @@ export default function PedidosLpqvTab() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-[16px] py-[13px]">
+                      {o.plataforma ? (
+                        <div>
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full px-[9px] py-[4px] text-[11px] font-bold"
+                            style={{ background: pf.bg, color: pf.fg }}
+                          >
+                            {o.plataforma === "Computador" ? (
+                              <Monitor size={11} color={pf.fg} />
+                            ) : (
+                              <Smartphone size={11} color={pf.fg} />
+                            )}
+                            {pf.label}
+                          </span>
+                          {o.dispositivo && (
+                            <div className="mt-[3px] text-[11px] text-faint">{o.dispositivo}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-faint">—</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-[16px] py-[13px]">
                       {o.emailEnviadoEm ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F5E3] px-[9px] py-[4px] text-[11.5px] font-bold text-[#1F8A5B]">
                           <Check size={12} color="#1F8A5B" strokeWidth={3} /> enviado
@@ -340,7 +438,7 @@ export default function PedidosLpqvTab() {
               })}
               {filtered.length === 0 && (
                 <tr className="border-t border-[#F1ECF8]">
-                  <td colSpan={9} className="px-4 py-10 text-center text-[13.5px] text-muted">
+                  <td colSpan={10} className="px-4 py-10 text-center text-[13.5px] text-muted">
                     {loading ? "Carregando…" : "Nenhum pedido neste filtro."}
                   </td>
                 </tr>

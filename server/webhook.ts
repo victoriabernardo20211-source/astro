@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { getDb, schema } from "./db.js";
 import type { NewOrderRow, WebhookEventRow } from "./schema.js";
 import { toCanonicalStatus, generateTrackingCode, formatDate, toIsoDate } from "./csv-lpqv.js";
+import { parseUa, platformOf } from "./ua.js";
 
 const { webhookEvents } = schema;
 
@@ -50,6 +51,8 @@ const KEY: Record<string, string> = {
   tipodefrete: "tipoFrete", tipofrete: "tipoFrete", shippingtype: "tipoFrete",
   data: "data", date: "data", createdat: "data", creatat: "data", orderdate: "data",
   transportadora: "transportadora", carrier: "transportadora",
+  // dispositivo de quem FEZ o pedido (aparelho usado no checkout)
+  clientuseragent: "userAgent", useragent: "userAgent", customeruseragent: "userAgent",
 };
 
 /** Desembrulha o pedido de dentro de envelopes comuns (response.result[0], data, order…). */
@@ -129,6 +132,7 @@ export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
   const codigo = codigoRastreio || codigoSimples || generated;
   const { display, iso } = normalizeDate(fields.data || "");
   const qtde = parseInt(fields.qtde || "", 10);
+  const deviceInfo = fields.userAgent ? parseUa(fields.userAgent) : null;
 
   return {
     codigo,
@@ -155,6 +159,10 @@ export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
     valorTotal: brMoney(fields.valorTotal),
     codigoRastreio: codigo,
     transportadora: fields.transportadora || (process.env.TRANSPORTADORA || "").trim() || null,
+    dispositivo: deviceInfo?.device || null,
+    dispositivoMarca: deviceInfo?.brand || null,
+    dispositivoOs: deviceInfo?.os || null,
+    plataforma: deviceInfo ? platformOf(deviceInfo) : null,
     origem: "Centro de distribuição LPQV",
     data: display,
     dataPedido: iso,

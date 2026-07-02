@@ -88,3 +88,12 @@ export function parseUa(uaRaw: string | undefined | null): DeviceInfo {
 
   return { device: "Desconhecido", brand: "Desconhecido", os: "—", browser };
 }
+
+/** Broad platform bucket, para filtros/exportação: "iOS" | "Android" | "Computador" | "Outro". */
+export function platformOf(info: DeviceInfo): string {
+  if (info.device === "iPhone" || info.device === "iPad" || /^iOS|^iPadOS/.test(info.os))
+    return "iOS";
+  if (/^Android/.test(info.os)) return "Android";
+  if (info.device.startsWith("Computador")) return "Computador";
+  return "Outro";
+}

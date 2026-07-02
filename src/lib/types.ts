@@ -37,6 +37,10 @@ export interface Order {
   meioPagamento?: string | null;
   codigoRastreio?: string | null;
   transportadora?: string | null;
+  dispositivo?: string | null;
+  dispositivoMarca?: string | null;
+  dispositivoOs?: string | null;
+  plataforma?: string | null;
   origem?: string | null;
   data?: string | null;
   dataPedido?: string | null;

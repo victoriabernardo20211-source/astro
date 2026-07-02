@@ -41,6 +41,11 @@ export const orders = pgTable("orders", {
   meioPagamento: text("meio_pagamento"),
   codigoRastreio: text("codigo_rastreio"),
   transportadora: text("transportadora"),
+  // dispositivo usado para FAZER o pedido (do webhook LPQV, client_user_agent)
+  dispositivo: text("dispositivo"), // "iPhone", "Samsung · SM-A515F"…
+  dispositivoMarca: text("dispositivo_marca"), // Apple / Samsung / Xiaomi…
+  dispositivoOs: text("dispositivo_os"), // iOS 17.4 / Android 13…
+  plataforma: text("plataforma"), // "iOS" | "Android" | "Computador" | "Outro"
   origem: text("origem"),
   data: text("data"), // order date as shown (display)
   dataPedido: text("data_pedido"), // ISO date (YYYY-MM-DD) for estimated timeline
