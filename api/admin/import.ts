@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAdmin } from "../../server/auth";
-import { parseLpqvCsv } from "../../server/csv-lpqv";
-import { importOrders } from "../../server/orders-service";
+import { requireAdmin } from "../../server/auth.js";
+import { parseLpqvCsv } from "../../server/csv-lpqv.js";
+import { importOrders } from "../../server/orders-service.js";
 
 /** POST /api/admin/import { csv, mode, name } → { count, added, errors }. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

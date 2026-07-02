@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAdmin } from "../../server/auth";
+import { requireAdmin } from "../../server/auth.js";
 import {
   listOrders,
   listImports,
   listLookups,
-} from "../../server/orders-service";
+} from "../../server/orders-service.js";
 
 /** GET /api/admin/orders → { orders, imports, lookups } (requires admin token). */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

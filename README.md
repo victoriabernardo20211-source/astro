@@ -1,5 +1,5 @@
 # Astro Fretes
-deploy
+
 Site de transporte rodoviário e rastreamento logístico para a **Astro Fretes**,
 implementado em **React + Vite + TypeScript + Tailwind CSS** (roteamento com
 React Router) a partir dos designs exportados do Claude Design (ver

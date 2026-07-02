@@ -1,10 +1,10 @@
 import express from "express";
 import type { Request, Response } from "express";
-import track from "../api/track";
-import login from "../api/login";
-import adminOrders from "../api/admin/orders";
-import adminImport from "../api/admin/import";
-import adminReset from "../api/admin/reset";
+import track from "../api/track.js";
+import login from "../api/login.js";
+import adminOrders from "../api/admin/orders.js";
+import adminImport from "../api/admin/import.js";
+import adminReset from "../api/admin/reset.js";
 
 /**
  * Local API server. Mounts the same handlers that Vercel deploys as serverless

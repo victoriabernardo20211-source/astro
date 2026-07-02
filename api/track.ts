@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { trackOrder, recordLookup } from "../server/orders-service";
-import { parseUa } from "../server/ua";
+import { trackOrder, recordLookup } from "../server/orders-service.js";
+import { parseUa } from "../server/ua.js";
 
 function clientIp(req: VercelRequest): string | null {
   const fwd = req.headers["x-forwarded-for"];

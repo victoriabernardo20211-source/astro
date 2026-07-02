@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import * as schema from "./schema";
+import * as schema from "./schema.js";
 
 /**
  * Returns a Drizzle client. Uses Vercel Postgres (or any Postgres) when a

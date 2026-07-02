@@ -1,6 +1,6 @@
 import { or, sql, desc, inArray } from "drizzle-orm";
-import { getDb, schema, seedDemo } from "./db";
-import type { NewOrderRow, OrderRow, ImportRow, LookupRow } from "./schema";
+import { getDb, schema, seedDemo } from "./db.js";
+import type { NewOrderRow, OrderRow, ImportRow, LookupRow } from "./schema.js";
 
 const { orders, imports, lookups } = schema;
 

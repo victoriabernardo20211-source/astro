@@ -1,4 +1,4 @@
-import type { NewOrderRow } from "./schema";
+import type { NewOrderRow } from "./schema.js";
 
 export interface ParseResult {
   orders: NewOrderRow[];

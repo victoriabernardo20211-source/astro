@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAdmin } from "../../server/auth";
-import { resetToDemo } from "../../server/orders-service";
+import { requireAdmin } from "../../server/auth.js";
+import { resetToDemo } from "../../server/orders-service.js";
 
 /** POST /api/admin/reset → wipes data and restores demo orders. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
