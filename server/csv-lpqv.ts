@@ -168,7 +168,7 @@ export function toIsoDate(raw: string): string | null {
 export function toCanonicalStatus(envio: string, pagamento: string): string {
   const s = norm(envio);
   if (!s && !pagamento) return "Pedido recebido";
-  if (s.includes("entregue")) return "Entregue";
+  if (s.includes("entregue") || s.includes("delivered")) return "Entregue";
   if (s.includes("saiu")) return "Saiu para entrega";
   if (s.includes("rota")) return "Em rota";
   if (s.includes("chegou") || s.includes("destino")) return "Chegou no estado destino";
@@ -177,19 +177,36 @@ export function toCanonicalStatus(envio: string, pagamento: string): string {
     s.includes("transporte") ||
     s.includes("enviado") ||
     s.includes("postado") ||
+    s.includes("shipped") ||
     s.includes("a caminho") ||
     s.includes("transportadora")
   )
     return "Em trânsito";
   if (s.includes("coletad") || s.includes("coleta")) return "Coletado";
-  if (s.includes("separa") || s.includes("preparando") || s.includes("processando"))
+  if (s.includes("separa") || s.includes("preparando") || s.includes("processando") || s.includes("processing"))
     return "Em separação";
-  if (s.includes("aprovado") || s.includes("faturado")) return "Em separação";
-  if (s.includes("recebido") || s.includes("novo") || s.includes("aguardando") || s.includes("pendente"))
+  if (
+    s.includes("aprovado") ||
+    s.includes("faturado") ||
+    s.includes("paid") ||
+    s.includes("pago") ||
+    s.includes("accept") // payment_accept (LPQV)
+  )
+    return "Em separação";
+  if (
+    s.includes("recebido") ||
+    s.includes("novo") ||
+    s.includes("aguardando") ||
+    s.includes("pending") ||
+    s.includes("pendente")
+  )
     return "Pedido recebido";
   // fall back to the payment status
   const p = norm(pagamento);
-  if (p.includes("aprovado") || p.includes("realizado") || p.includes("pago"))
+  if (
+    p.includes("aprovado") || p.includes("realizado") || p.includes("pago") ||
+    p.includes("paid") || p.includes("accept")
+  )
     return "Em separação";
   return "Pedido recebido";
 }

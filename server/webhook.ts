@@ -17,69 +17,88 @@ function norm(k: string): string {
 /** normaliza chaves conhecidas (várias grafias) -> campo interno */
 const KEY: Record<string, string> = {
   // código / número do pedido
-  codigoderastreio: "codigoRastreio", codigorastreio: "codigoRastreio", rastreio: "codigoRastreio", trackingcode: "codigoRastreio",
-  cod: "pedidoRef", codigo: "codigo", id: "pedidoRef", pedidoid: "pedidoRef", orderid: "pedidoRef",
-  numero: "numero", numeropedido: "pedidoRef", reference: "pedidoRef", referencia: "pedidoRef",
+  codigoderastreio: "codigoRastreio", codigorastreio: "codigoRastreio", rastreio: "codigoRastreio",
+  trackingcode: "codigoRastreio",
+  cod: "pedidoRef", codigo: "codigo", token: "pedidoRef", pedidoid: "pedidoRef", orderid: "pedidoRef",
+  numeropedido: "pedidoRef", reference: "pedidoRef", referencia: "pedidoRef",
   // cliente
-  cliente: "cliente", nome: "cliente", nomecliente: "cliente", customername: "cliente", name: "cliente", destinatario: "cliente",
-  documento: "cpf", cpf: "cpf", cpfcnpj: "cpf", document: "cpf",
-  email: "email", telefone: "telefone", tel: "telefone", celular: "telefone", phone: "telefone",
+  cliente: "cliente", nome: "cliente", nomecliente: "cliente", customername: "cliente",
+  name: "cliente", destinatario: "cliente", recipient: "cliente",
+  documento: "cpf", cpf: "cpf", cpfcnpj: "cpf", document: "cpf", customercpf: "cpf",
+  email: "email", customeremail: "email",
+  telefone: "telefone", tel: "telefone", celular: "telefone", phone: "telefone", phonenumber: "telefone",
   // status
-  status: "status", statusenvio: "statusEnvio", statusdoenvio: "statusEnvio", situacao: "statusEnvio", shippingstatus: "statusEnvio",
+  status: "status", statusenvio: "statusEnvio", statusdoenvio: "statusEnvio", situacao: "statusEnvio",
+  shippingstatus: "statusEnvio", event: "statusEnvio",
   // endereço
   endereco: "endereco", logradouro: "endereco", rua: "endereco", address: "endereco", street: "endereco",
+  numero: "numero", number: "numero", num: "numero",
   complemento: "complemento", complement: "complemento",
-  bairro: "bairro", neighborhood: "bairro",
+  bairro: "bairro", neighborhood: "bairro", district: "bairro",
   cidade: "cidade", city: "cidade",
   uf: "uf", estado: "uf", state: "uf",
   cep: "cep", zip: "cep", zipcode: "cep", postalcode: "cep",
   // produto
-  produto: "produto", produtodescricao: "produto", nomeproduto: "produto", product: "produto", title: "produto",
-  produtofoto: "produtoFoto", foto: "produtoFoto", imagem: "produtoFoto", image: "produtoFoto", productimage: "produtoFoto",
-  produtosku: "produtoSku", sku: "produtoSku",
-  qtde: "qtde", quantidade: "qtde", quantity: "qtde", qty: "qtde",
+  produto: "produto", produtodescricao: "produto", productdescription: "produto",
+  nomeproduto: "produto", title: "produto",
+  produtofoto: "produtoFoto", foto: "produtoFoto", imagem: "produtoFoto", productimage: "produtoFoto",
+  produtosku: "produtoSku", sku: "produtoSku", productvariantsku: "produtoSku",
+  qtde: "qtde", quantidade: "qtde", quantity: "qtde", qty: "qtde", productqtdy: "qtde",
   // valores / frete / data / transportadora
-  total: "valorTotal", valortotal: "valorTotal", totaldopedido: "valorTotal", amount: "valorTotal", ordertotal: "valorTotal",
-  tipodefrete: "tipoFrete", tipofrete: "tipoFrete", frete: "tipoFrete", shipping: "tipoFrete",
-  data: "data", date: "data", createdat: "data", orderdate: "data", datapedido: "data",
+  total: "valorTotal", valortotal: "valorTotal", totaldopedido: "valorTotal",
+  paymentsubtotal: "valorTotal", paymenttotal: "valorTotal", shopifyamounet: "valorTotal", ordertotal: "valorTotal",
+  tipodefrete: "tipoFrete", tipofrete: "tipoFrete", shippingtype: "tipoFrete",
+  data: "data", date: "data", createdat: "data", creatat: "data", orderdate: "data",
   transportadora: "transportadora", carrier: "transportadora",
 };
 
-const PRODUCT_ARRAY_KEYS = new Set(["produtos", "itens", "items", "products", "produto", "product"]);
+/** Desembrulha o pedido de dentro de envelopes comuns (response.result[0], data, order…). */
+function unwrapOrder(payload: any): any {
+  let p = payload;
+  for (let i = 0; i < 4 && p && typeof p === "object"; i++) {
+    if (p.response && typeof p.response === "object") {
+      p = p.response;
+      continue;
+    }
+    if (Array.isArray(p.result) && p.result[0]) return p.result[0];
+    if (p.result && typeof p.result === "object" && !Array.isArray(p.result)) {
+      p = p.result;
+      continue;
+    }
+    if (Array.isArray(p.data) && p.data[0]) return p.data[0];
+    if (p.data && typeof p.data === "object") { p = p.data; continue; }
+    if (p.order && typeof p.order === "object") return p.order;
+    if (p.pedido && typeof p.pedido === "object") return p.pedido;
+    break;
+  }
+  if (Array.isArray(p) && p[0]) return p[0];
+  return p;
+}
 
-/** Achata o payload: coleta escalares por chave normalizada + guarda arrays de produtos. */
-function flatten(obj: unknown, fields: Record<string, string>, arrays: Record<string, any[]>, depth = 0) {
+/** Achata um objeto: escalares por chave normalizada (1ª ocorrência vence) + desce em objetos e arrays. */
+function flatten(obj: unknown, fields: Record<string, string>, depth = 0) {
   if (!obj || typeof obj !== "object" || depth > 6) return;
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     if (v == null) continue;
-    const nk = norm(k);
     if (Array.isArray(v)) {
-      if (PRODUCT_ARRAY_KEYS.has(nk) && !arrays[nk]) arrays[nk] = v as any[];
+      for (const el of v) if (el && typeof el === "object") flatten(el, fields, depth + 1);
       continue;
     }
     if (typeof v === "object") {
-      flatten(v, fields, arrays, depth + 1);
+      flatten(v, fields, depth + 1);
       continue;
     }
-    const field = KEY[nk];
+    const field = KEY[norm(k)];
     if (field && fields[field] === undefined) fields[field] = String(v);
   }
 }
 
-function firstProduct(arrays: Record<string, any[]>): Record<string, unknown> | null {
-  for (const k of PRODUCT_ARRAY_KEYS) {
-    const arr = arrays[k];
-    if (Array.isArray(arr) && arr.length && typeof arr[0] === "object") return arr[0];
-  }
-  return null;
-}
-
-function pickFrom(o: Record<string, unknown>, keys: string[]): string {
-  for (const [k, v] of Object.entries(o)) {
-    if (v == null || typeof v === "object") continue;
-    if (keys.includes(norm(k))) return String(v);
-  }
-  return "";
+/** "99.90" -> "99,90" (decimal BR) para exibir consistente. */
+function brMoney(v?: string): string | null {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return Number(s).toFixed(2).replace(".", ",");
+  return s;
 }
 
 function normalizeDate(raw: string): { display: string; iso: string | null } {
@@ -94,20 +113,11 @@ function normalizeDate(raw: string): { display: string; iso: string | null } {
   return { display: formatDate(raw), iso: toIsoDate(raw) };
 }
 
-/** Tenta montar um pedido a partir do payload do webhook (formato desconhecido). */
+/** Monta um pedido a partir do payload do webhook da LPQV (envelope response.result[]). */
 export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
+  const order = unwrapOrder(payload);
   const fields: Record<string, string> = {};
-  const arrays: Record<string, any[]> = {};
-  flatten(payload, fields, arrays);
-
-  // produto a partir de array, se não veio como escalar
-  const prod = firstProduct(arrays);
-  if (prod) {
-    fields.produto ??= pickFrom(prod, ["produto", "produtodescricao", "nome", "name", "title", "descricao"]);
-    fields.produtoFoto ??= pickFrom(prod, ["foto", "imagem", "image", "productimage", "produtofoto"]);
-    fields.produtoSku ??= pickFrom(prod, ["sku", "produtosku"]);
-    if (!fields.qtde) fields.qtde = pickFrom(prod, ["qtde", "quantidade", "quantity", "qty"]);
-  }
+  flatten(order, fields);
 
   const pedidoRef = fields.pedidoRef || "";
   const cpf = fields.cpf || "";
@@ -142,7 +152,7 @@ export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
     produtoFoto: fields.produtoFoto || null,
     qtde: Number.isFinite(qtde) && qtde > 0 ? qtde : 1,
     tipoFrete: fields.tipoFrete || null,
-    valorTotal: fields.valorTotal || null,
+    valorTotal: brMoney(fields.valorTotal),
     codigoRastreio: codigo,
     transportadora: fields.transportadora || (process.env.TRANSPORTADORA || "").trim() || null,
     origem: "Centro de distribuição LPQV",
