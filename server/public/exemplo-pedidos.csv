@@ -1,0 +1,6 @@
+cpf,cliente,codigo,cidade,uf,status,data,origem,servico,previsao
+304.118.756-09,Mariana Castro,AF-2847193-BR,Salvador,BA,Em rota,15 jun 2026,São Paulo / SP,Carga fracionada,"Hoje, até 18h"
+512.903.447-21,Rafael Nogueira,AF-2847055-BR,Curitiba,PR,Em trânsito,14 jun 2026,São Paulo / SP,Carga dedicada,"16 jun, até 18h"
+887.654.120-33,Camila Andrade,AF-2846910-BR,Fortaleza,CE,Saiu para entrega,15 jun 2026,Recife / PE,Carga fracionada,"Hoje, até 18h"
+203.776.998-50,Lucas Pereira,AF-2846783-BR,Belo Horizonte,MG,Entregue,13 jun 2026,São Paulo / SP,Carga fracionada,Entregue
+641.230.885-17,Beatriz Lima,AF-2846640-BR,Recife,PE,Em separação,15 jun 2026,São Paulo / SP,Armazenagem,"17 jun, até 18h"
