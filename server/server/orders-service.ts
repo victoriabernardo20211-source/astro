@@ -15,13 +15,12 @@ export interface SendEmailsResult {
   mailConfigured: boolean;
 }
 
-/** Pedido pago? (não notifica pendentes/cancelados). Desconhecido conta como pago. */
+/** Pedido pago? (não notifica pendentes/cancelados). Sem pista no texto, NUNCA assume pago. */
 function isPaidRow(o: { statusPagamento?: string | null; statusEnvio?: string | null; status?: string | null }): boolean {
   const s = `${o.statusPagamento ?? ""} ${o.statusEnvio ?? ""}`.toLowerCase();
   if (/cancel|refus|recus|estorn|charge|expir|reembol|devolv/.test(s)) return false;
   if (/aprov|paid|pago|accept|realizad|authoriz|autoriz|approv|complete/.test(s)) return true;
-  if (/aguard|wait|pending|pendente|analise|unpaid|aberto/.test(s)) return false;
-  return (o.status || "") !== "Pedido recebido";
+  return false; // aguard/wait/pending/etc ou nenhuma pista: trata como não pago
 }
 
 const MAX_EMAILS = 300;
@@ -116,6 +115,30 @@ export async function markOrdersNotified(codigos: string[]): Promise<number> {
   await db
     .update(orders)
     .set({ emailEnviadoEm: new Date().toISOString() })
+    .where(inArray(orders.codigo, toMark));
+  return toMark.length;
+}
+
+/**
+ * Marca os pedidos como já baixados na 2ª lista ("a caminho", pós-notificação
+ * — iOS/Android separados). Pula quem já estava marcado. Retorna quantos
+ * foram marcados agora.
+ */
+export async function markAcaminhoBaixado(codigos: string[]): Promise<number> {
+  const db = await getDb();
+  const codes = [...new Set(codigos)];
+  if (!codes.length) return 0;
+
+  const rows = await db
+    .select({ codigo: orders.codigo, acaminhoBaixadoEm: orders.acaminhoBaixadoEm })
+    .from(orders)
+    .where(inArray(orders.codigo, codes));
+  const toMark = rows.filter((o) => !o.acaminhoBaixadoEm).map((o) => o.codigo);
+  if (!toMark.length) return 0;
+
+  await db
+    .update(orders)
+    .set({ acaminhoBaixadoEm: new Date().toISOString() })
     .where(inArray(orders.codigo, toMark));
   return toMark.length;
 }

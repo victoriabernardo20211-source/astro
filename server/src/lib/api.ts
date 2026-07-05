@@ -142,6 +142,18 @@ export async function markNotified(codigos: string[]): Promise<{ marked: number 
   return data as { marked: number };
 }
 
+/** Marca pedidos (já notificados) como baixados na 2ª lista ("a caminho"). */
+export async function markAcaminhoBaixado(codigos: string[]): Promise<{ marked: number }> {
+  const res = await fetch("/api/admin/mark-acaminho", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ codigos }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Falha ao marcar como baixado.");
+  return data as { marked: number };
+}
+
 export interface PresenceData {
   online: number;
   visitors: Presence[];
