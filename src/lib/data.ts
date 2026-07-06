@@ -41,8 +41,17 @@ function parseOrderDate(order: Order): Date | null {
   // entrou no sistema (createdAt), pra nunca inventar data.
   const raw = order.dataPedido || order.createdAt;
   if (!raw) return null;
-  const d = new Date(raw);
+  // "YYYY-MM-DD" (sem hora) o JS interpreta como meia-noite UTC — em fusos
+  // atrás de UTC (Brasil) isso "volta" um dia ao formatar com getDate() local.
+  // Construir a partir dos componentes Y/M/D evita esse desvio.
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(raw);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/** Remove "LPQV" de textos de origem (nome interno da loja, não do cliente final). */
+export function cleanOrigem(raw: string): string {
+  return raw.replace(/\blpqv\b/gi, "").replace(/\s{2,}/g, " ").trim();
 }
 
 /** Day offset (from the order date) at which each stage becomes current. */
@@ -118,7 +127,7 @@ export function estimatedDelivery(
 
 /** Default location for a step, derived from the order's origin/destination. */
 function defaultLocation(stepIdx: number, order: Order): string {
-  const origem = order.origem || "Centro de origem";
+  const origem = cleanOrigem(order.origem || "") || "Centro de origem";
   const destino =
     `${order.cidade ?? ""}${order.uf ? " / " + order.uf : ""}`.trim() || "destino";
   switch (stepIdx) {

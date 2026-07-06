@@ -3,6 +3,7 @@ import {
   buildTimeline,
   currentStatusLabel,
   estimatedDelivery,
+  cleanOrigem,
 } from "@/lib/data";
 import Timeline from "./Timeline";
 import TrackSearch from "./TrackSearch";
@@ -27,7 +28,7 @@ export default function TrackingResult({ order }: { order: Order }) {
     ["Código", order.codigo],
     order.pedidoRef ? ["Nº do pedido", order.pedidoRef] : null,
     order.transportadora ? ["Transportadora", order.transportadora] : null,
-    ["Origem", order.origem || "Centro de distribuição"],
+    ["Origem", cleanOrigem(order.origem || "") || "Centro de distribuição"],
     ["Destino", destino],
     order.tipoFrete ? ["Frete", order.tipoFrete] : null,
     order.valorTotal ? ["Total", `R$ ${order.valorTotal}`] : null,

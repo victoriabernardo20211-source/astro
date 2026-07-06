@@ -82,6 +82,12 @@ async function ensureSchema(db: DB) {
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispositivo_os text;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS plataforma text;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS acaminho_baixado_em text;`);
+  // limpa "LPQV" de pedidos gravados antes de tirarmos isso do texto padrão
+  await db.execute(sql`
+    UPDATE orders
+    SET origem = trim(regexp_replace(regexp_replace(origem, 'lpqv', '', 'gi'), '\s{2,}', ' ', 'g'))
+    WHERE origem ILIKE '%lpqv%';
+  `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS imports (
       id serial PRIMARY KEY,
