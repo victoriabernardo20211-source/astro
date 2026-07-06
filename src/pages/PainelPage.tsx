@@ -7,6 +7,7 @@ import { AdminDataProvider } from "@/lib/admin-store";
 import TrackingsTab from "@/components/dashboard/TrackingsTab";
 import UploadTab from "@/components/dashboard/UploadTab";
 import PedidosLpqvTab from "@/components/dashboard/PedidosLpqvTab";
+import PorDiaTab from "@/components/dashboard/PorDiaTab";
 import ArquivosTab from "@/components/dashboard/ArquivosTab";
 import ContaTab from "@/components/dashboard/ContaTab";
 import AcessosTab from "@/components/dashboard/AcessosTab";
@@ -17,6 +18,7 @@ const TABS = [
   "Ao vivo",
   "Rastreamentos",
   "Pedidos LPQV",
+  "Por Dia",
   "Acessos",
   "Upload Planilha",
   "Webhooks",
@@ -110,6 +112,7 @@ export default function PainelPage() {
         {tab === "Rastreamentos" && <TrackingsTab />}
         {tab === "Upload Planilha" && <UploadTab />}
         {tab === "Pedidos LPQV" && <PedidosLpqvTab />}
+        {tab === "Por Dia" && <PorDiaTab />}
         {tab === "Acessos" && <AcessosTab />}
         {tab === "Webhooks" && <WebhooksTab />}
         {tab === "Meus Arquivos" && <ArquivosTab />}
