@@ -330,7 +330,7 @@ export function parseLpqvCsv(text: string): ParseResult {
       codigoRastreio: codigo,
       // transportadora: da planilha, senão o padrão definido em TRANSPORTADORA
       transportadora: get("transportadora") || DEFAULT_CARRIER || null,
-      origem: get("origem") || "Centro de distribuição LPQV",
+      origem: get("origem") || "Centro de distribuição",
       data: formatDate(get("data")),
       dataPedido: toIsoDate(get("data")),
       previsao: get("previsao") || null,

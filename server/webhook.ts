@@ -193,7 +193,7 @@ export function parseWebhookOrder(payload: unknown): NewOrderRow | null {
     dispositivoMarca: deviceInfo?.brand || null,
     dispositivoOs: deviceInfo?.os || null,
     plataforma: deviceInfo ? platformOf(deviceInfo) : null,
-    origem: "Centro de distribuição LPQV",
+    origem: "Centro de distribuição",
     data: display,
     dataPedido: iso,
     previsao: null,

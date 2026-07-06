@@ -81,6 +81,7 @@ async function ensureSchema(db: DB) {
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispositivo_marca text;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispositivo_os text;`);
   await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS plataforma text;`);
+  await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS acaminho_baixado_em text;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS imports (
       id serial PRIMARY KEY,

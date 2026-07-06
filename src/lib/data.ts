@@ -126,7 +126,7 @@ function defaultLocation(stepIdx: number, order: Order): string {
     case 1:
       return `${origem} · Centro de origem`;
     case 2:
-      return origem;
+      return `Postado em ${origem}`;
     case 3:
       return `A caminho de ${order.cidade ?? "destino"}`;
     case 4:
@@ -169,9 +169,9 @@ export function paymentStatus(order: Order): "pago" | "pendente" | "cancelado" {
     return "pago";
   if (/aguard|wait|pending|pendente|analise|unpaid|aberto|nao pago/.test(s))
     return "pendente";
-  // sem pista no pagamento: se o rastreio ainda está em "Pedido recebido",
-  // trata como pendente (pagos avançam para "Em separação"); senão, pago.
-  return statusIndex(order.status || "") === 0 ? "pendente" : "pago";
+  // sem nenhuma pista de pagamento no texto: NUNCA assume que foi pago —
+  // trata como pendente até vir uma confirmação explícita.
+  return "pendente";
 }
 
 /** Cores do selo de pagamento. */

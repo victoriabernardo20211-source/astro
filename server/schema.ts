@@ -51,6 +51,7 @@ export const orders = pgTable("orders", {
   dataPedido: text("data_pedido"), // ISO date (YYYY-MM-DD) for estimated timeline
   previsao: text("previsao"),
   emailEnviadoEm: text("email_enviado_em"), // ISO datetime quando o e-mail foi enviado (null = não enviado)
+  acaminhoBaixadoEm: text("acaminho_baixado_em"), // ISO datetime da 2ª exportação ("a caminho", pós-notificação)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

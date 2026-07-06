@@ -47,6 +47,7 @@ export interface Order {
   previsao?: string | null;
   createdAt?: string | null;
   emailEnviadoEm?: string | null;
+  acaminhoBaixadoEm?: string | null;
 }
 
 /** A CSV import event (admin "Meus Arquivos"). */

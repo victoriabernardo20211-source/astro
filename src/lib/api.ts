@@ -119,18 +119,39 @@ export interface SendEmailsResult {
   mailConfigured: boolean;
 }
 
-export async function sendOrderEmails(
-  codigos: string[],
-  force = false
-): Promise<SendEmailsResult> {
+export async function sendOrderEmails(codigos: string[]): Promise<SendEmailsResult> {
   const res = await fetch("/api/admin/send-emails", {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ codigos, force }),
+    body: JSON.stringify({ codigos }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar e-mails.");
   return data as SendEmailsResult;
+}
+
+/** Marca pedidos como notificados sem enviar e-mail (ex.: após exportar iOS/Android). */
+export async function markNotified(codigos: string[]): Promise<{ marked: number }> {
+  const res = await fetch("/api/admin/mark-notified", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ codigos }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Falha ao marcar como notificado.");
+  return data as { marked: number };
+}
+
+/** Marca pedidos (já notificados) como baixados na 2ª lista ("a caminho"). */
+export async function markAcaminhoBaixado(codigos: string[]): Promise<{ marked: number }> {
+  const res = await fetch("/api/admin/mark-acaminho", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ codigos }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? "Falha ao marcar como baixado.");
+  return data as { marked: number };
 }
 
 export interface PresenceData {

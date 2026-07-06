@@ -33,9 +33,14 @@ function orderDay(o: Order): string {
 
 const isToday = (o: Order) => orderDay(o) === localToday();
 const pago = (o: Order) => paymentStatus(o) === "pago";
-// só notifica PAGOS, com e-mail e ainda não enviados
-const aNotificar = (o: Order) => pago(o) && !!o.email && !o.emailEnviadoEm;
 const notificado = (o: Order) => !!o.emailEnviadoEm;
+// pool base p/ downloads: pagos, ainda não notificados (com ou sem e-mail)
+const pagoNaoNotificado = (o: Order) => pago(o) && !notificado(o);
+// só notifica PAGOS, com e-mail e ainda não enviados
+const aNotificar = (o: Order) => pagoNaoNotificado(o) && !!o.email;
+// "Pagos" = só quem ainda não tem pra onde ir — sem e-mail, não caiu em "A
+// notificar" nem em "A caminho" (é mutuamente exclusivo com as outras abas)
+const pagosSemAcao = (o: Order) => pagoNaoNotificado(o) && !o.email;
 const entregue = (o: Order) => statusIndex(o.status || "") === 7;
 const emTransporte = (o: Order) => {
   const i = statusIndex(currentStatusLabel(o));
@@ -45,11 +50,11 @@ const emTransporte = (o: Order) => {
 const FILTERS: Array<{ key: string; label: string; test: (o: Order) => boolean }> = [
   { key: "todos", label: "Todos", test: () => true },
   { key: "hoje", label: "Novos do dia", test: isToday },
-  { key: "pagos", label: "Pagos", test: pago },
+  { key: "pagos", label: "Pagos", test: pagosSemAcao },
   { key: "pendentes", label: "Pendentes", test: (o) => paymentStatus(o) === "pendente" },
   { key: "cancelados", label: "Cancelados", test: (o) => paymentStatus(o) === "cancelado" },
   { key: "notificar", label: "A notificar", test: aNotificar },
-  { key: "notificados", label: "Notificados", test: notificado },
+  { key: "acaminho", label: "A caminho", test: notificado },
   { key: "transporte", label: "Em transporte", test: emTransporte },
   { key: "entregues", label: "Entregues", test: entregue },
   { key: "ios", label: "iOS", test: (o) => o.plataforma === "iOS" },
@@ -106,21 +111,40 @@ function exportCsv(rows: Order[], filename: string) {
 }
 
 export default function PedidosLpqvTab() {
-  const { orders, loading, sendEmails, deleteOrders, deleteAll } = useAdmin();
+  const { orders, loading, sendEmails, deleteOrders, deleteAll, markNotified, markAcaminhoBaixado } =
+    useAdmin();
   const [filter, setFilter] = useState("todos");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
+  // 1ª lista: pagos ainda não notificados — some assim que marcados
+  const iosPendentes = useMemo(
+    () => orders.filter((o) => o.plataforma === "iOS" && pagoNaoNotificado(o)),
+    [orders]
+  );
+  const androidPendentes = useMemo(
+    () => orders.filter((o) => o.plataforma === "Android" && pagoNaoNotificado(o)),
+    [orders]
+  );
+  // 2ª lista: já notificados ("a caminho"), ainda não baixados nessa etapa
+  const iosACaminho = useMemo(
+    () => orders.filter((o) => o.plataforma === "iOS" && notificado(o) && !o.acaminhoBaixadoEm),
+    [orders]
+  );
+  const androidACaminho = useMemo(
+    () => orders.filter((o) => o.plataforma === "Android" && notificado(o) && !o.acaminhoBaixadoEm),
+    [orders]
+  );
+
   const stats = useMemo(() => {
     const total = orders.length;
     const novos = orders.filter(isToday).length;
     const notificar = orders.filter(aNotificar).length;
+    const notificados = orders.filter(notificado).length;
     const vendas = orders.reduce((s, o) => s + money(o.valorTotal), 0);
-    const ios = orders.filter((o) => o.plataforma === "iOS").length;
-    const android = orders.filter((o) => o.plataforma === "Android").length;
-    return { total, novos, notificar, vendas, ios, android };
+    return { total, novos, notificar, notificados, vendas };
   }, [orders]);
 
   const filtered = useMemo(() => {
@@ -141,6 +165,7 @@ export default function PedidosLpqvTab() {
     { icon: Package, label: "Pedidos", value: String(stats.total), tint: "#7B2FBE" },
     { icon: Bell, label: "Novos do dia", value: String(stats.novos), tint: "#6B23B0" },
     { icon: Mail, label: "A notificar", value: String(stats.notificar), tint: "#C2410C" },
+    { icon: Check, label: "Clientes notificados", value: String(stats.notificados), tint: "#1F8A5B" },
     { icon: Check, label: "Vendas (total)", value: brl(stats.vendas), tint: "#1F8A5B" },
   ];
 
@@ -182,6 +207,31 @@ export default function PedidosLpqvTab() {
       setBusy(false);
     }
   }
+
+  /** Baixa o CSV de um grupo e pergunta se quer marcar como já processado (some do próximo "baixar todos"). */
+  async function baixarGrupo(
+    rows: Order[],
+    filename: string,
+    label: string,
+    mark: (codigos: string[]) => Promise<{ marked: number }>
+  ) {
+    if (!rows.length) return;
+    exportCsv(rows, filename);
+    const marcar = confirm(
+      `Baixado. Marcar os ${rows.length} pedido(s) ${label} como já processados, para eles não aparecerem de novo em "Baixar todos"?`
+    );
+    if (!marcar) return;
+    setBusy(true);
+    try {
+      const { marked } = await mark(rows.map((o) => o.codigo));
+      setMsg(`${marked} pedido(s) marcado(s).`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Falha ao marcar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function apagarSel() {
     const cods = [...selected];
     if (!cods.length) return;
@@ -215,7 +265,7 @@ export default function PedidosLpqvTab() {
       </div>
 
       {/* Cartões de resumo */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {cards.map(({ icon: Icon, label, value, tint }) => (
           <div key={label} className="rounded-2xl border border-line bg-white p-[18px]">
             <span
@@ -287,25 +337,48 @@ export default function PedidosLpqvTab() {
         {msg && <span className="text-[13px] font-medium text-brand">{msg}</span>}
       </div>
 
-      {/* Exportar por dispositivo (quem fez o pedido pelo app iOS ou Android) */}
+      {/* Exportar por dispositivo (quem fez o pedido pelo app iOS ou Android) — só pagos e ainda não notificados */}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => baixarGrupo(iosPendentes, "pedidos-ios.csv", "iOS", markNotified)}
+          disabled={busy || iosPendentes.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-ink disabled:opacity-40"
+        >
+          <Download size={15} color="#111827" /> Baixar todos iOS ({iosPendentes.length})
+        </button>
+        <button
+          onClick={() => baixarGrupo(androidPendentes, "pedidos-android.csv", "Android", markNotified)}
+          disabled={busy || androidPendentes.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
+        >
+          <Download size={15} color="#1F8A5B" /> Baixar todos Android ({androidPendentes.length})
+        </button>
+      </div>
+
+      {/* 2ª exportação — já notificados, "a caminho" — separada por plataforma */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           onClick={() =>
-            exportCsv(orders.filter((o) => o.plataforma === "iOS"), "pedidos-ios.csv")
+            baixarGrupo(iosACaminho, "pedidos-ios-a-caminho.csv", "iOS a caminho", markAcaminhoBaixado)
           }
-          disabled={stats.ios === 0}
-          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-ink disabled:opacity-40"
+          disabled={busy || iosACaminho.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-ink disabled:opacity-40"
         >
-          <Download size={15} color="#111827" /> Baixar todos iOS ({stats.ios})
+          <Download size={15} color="#111827" /> Baixar todos iOS a caminho ({iosACaminho.length})
         </button>
         <button
           onClick={() =>
-            exportCsv(orders.filter((o) => o.plataforma === "Android"), "pedidos-android.csv")
+            baixarGrupo(
+              androidACaminho,
+              "pedidos-android-a-caminho.csv",
+              "Android a caminho",
+              markAcaminhoBaixado
+            )
           }
-          disabled={stats.android === 0}
-          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
+          disabled={busy || androidACaminho.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
         >
-          <Download size={15} color="#1F8A5B" /> Baixar todos Android ({stats.android})
+          <Download size={15} color="#1F8A5B" /> Baixar todos Android a caminho ({androidACaminho.length})
         </button>
       </div>
 

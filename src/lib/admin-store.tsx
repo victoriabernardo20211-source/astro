@@ -23,7 +23,9 @@ interface AdminContextValue {
   ) => Promise<api.ImportResult>;
   deleteOrders: (codigos: string[]) => Promise<void>;
   deleteAll: () => Promise<void>;
-  sendEmails: (codigos: string[], force?: boolean) => Promise<api.SendEmailsResult>;
+  sendEmails: (codigos: string[]) => Promise<api.SendEmailsResult>;
+  markNotified: (codigos: string[]) => Promise<{ marked: number }>;
+  markAcaminhoBaixado: (codigos: string[]) => Promise<{ marked: number }>;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -74,8 +76,26 @@ export function AdminDataProvider({
   );
 
   const sendEmails = useCallback(
-    async (codigos: string[], force = false) => {
-      const result = await api.sendOrderEmails(codigos, force);
+    async (codigos: string[]) => {
+      const result = await api.sendOrderEmails(codigos);
+      await refresh();
+      return result;
+    },
+    [refresh]
+  );
+
+  const markNotified = useCallback(
+    async (codigos: string[]) => {
+      const result = await api.markNotified(codigos);
+      await refresh();
+      return result;
+    },
+    [refresh]
+  );
+
+  const markAcaminhoBaixado = useCallback(
+    async (codigos: string[]) => {
+      const result = await api.markAcaminhoBaixado(codigos);
       await refresh();
       return result;
     },
@@ -108,6 +128,8 @@ export function AdminDataProvider({
         deleteOrders,
         deleteAll,
         sendEmails,
+        markNotified,
+        markAcaminhoBaixado,
       }}
     >
       {children}
