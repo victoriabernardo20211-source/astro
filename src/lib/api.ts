@@ -57,6 +57,24 @@ function authHeaders(): Record<string, string> {
   return { authorization: `Bearer ${getToken()}` };
 }
 
+/**
+ * Único endpoint admin (server/api/admin/index.ts) — despacha por "action"
+ * no corpo. Um arquivo por operação estourava o limite de 12 Serverless
+ * Functions do plano Hobby da Vercel, então tudo passa por aqui agora.
+ */
+async function adminPost(
+  action: string,
+  body: Record<string, unknown> = {}
+): Promise<{ res: Response; data: any }> {
+  const res = await fetch("/api/admin", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+
 export interface AdminData {
   orders: Order[];
   imports: ImportRecord[];
@@ -64,10 +82,10 @@ export interface AdminData {
 }
 
 export async function fetchAdminData(): Promise<AdminData> {
-  const res = await fetch("/api/admin/orders", { headers: authHeaders() });
+  const { res, data } = await adminPost("orders");
   if (res.status === 401) throw new Error("unauthorized");
   if (!res.ok) throw new Error("Falha ao carregar os pedidos.");
-  return res.json();
+  return data as AdminData;
 }
 
 export interface ImportResult {
@@ -85,12 +103,7 @@ export async function importCsv(
   name: string,
   sendEmails: boolean
 ): Promise<ImportResult> {
-  const res = await fetch("/api/admin/import", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ csv, mode, name, sendEmails }),
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await adminPost("import", { csv, mode, name, sendEmails });
   if (!res.ok) {
     const msg = data?.errors?.length
       ? data.errors.join(" ")
@@ -101,11 +114,7 @@ export async function importCsv(
 }
 
 export async function deleteOrders(codigos: string[]): Promise<void> {
-  const res = await fetch("/api/admin/delete", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ codigos }),
-  });
+  const { res } = await adminPost("delete", { codigos });
   if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
 }
 
@@ -120,36 +129,21 @@ export interface SendEmailsResult {
 }
 
 export async function sendOrderEmails(codigos: string[]): Promise<SendEmailsResult> {
-  const res = await fetch("/api/admin/send-emails", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ codigos }),
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await adminPost("send-emails", { codigos });
   if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar e-mails.");
   return data as SendEmailsResult;
 }
 
 /** Marca pedidos como notificados sem enviar e-mail (ex.: após exportar iOS/Android). */
 export async function markNotified(codigos: string[]): Promise<{ marked: number }> {
-  const res = await fetch("/api/admin/mark-notified", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ codigos }),
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await adminPost("mark-notified", { codigos });
   if (!res.ok) throw new Error(data?.error ?? "Falha ao marcar como notificado.");
   return data as { marked: number };
 }
 
 /** Marca pedidos (já notificados) como baixados na 2ª lista ("a caminho"). */
 export async function markAcaminhoBaixado(codigos: string[]): Promise<{ marked: number }> {
-  const res = await fetch("/api/admin/mark-acaminho", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ codigos }),
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await adminPost("mark-acaminho", { codigos });
   if (!res.ok) throw new Error(data?.error ?? "Falha ao marcar como baixado.");
   return data as { marked: number };
 }
@@ -160,32 +154,23 @@ export interface PresenceData {
 }
 
 export async function fetchPresence(): Promise<PresenceData> {
-  const res = await fetch("/api/admin/presence", { headers: authHeaders() });
+  const { res, data } = await adminPost("presence");
   if (!res.ok) throw new Error("Falha ao carregar presença.");
-  return res.json();
+  return data as PresenceData;
 }
 
 export async function fetchWebhooks(): Promise<{ events: WebhookEvent[] }> {
-  const res = await fetch("/api/admin/webhooks", { headers: authHeaders() });
+  const { res, data } = await adminPost("webhooks");
   if (!res.ok) throw new Error("Falha ao carregar webhooks.");
-  return res.json();
+  return data as { events: WebhookEvent[] };
 }
 
 export async function sendTestEmail(to: string): Promise<void> {
-  const res = await fetch("/api/admin/test-email", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ to }),
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await adminPost("test-email", { to });
   if (!res.ok) throw new Error(data?.error ?? "Falha ao enviar o e-mail de teste.");
 }
 
 export async function deleteAllOrders(): Promise<void> {
-  const res = await fetch("/api/admin/delete", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ all: true }),
-  });
+  const { res } = await adminPost("delete", { all: true });
   if (!res.ok) throw new Error("Falha ao apagar os pedidos.");
 }
