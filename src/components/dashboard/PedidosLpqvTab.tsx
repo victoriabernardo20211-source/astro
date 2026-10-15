@@ -30,6 +30,7 @@ const FILTERS: Array<{ key: string; label: string; test: (o: Order) => boolean }
   { key: "entregues", label: "Entregues", test: entregue },
   { key: "ios", label: "iOS", test: (o) => o.plataforma === "iOS" },
   { key: "android", label: "Android", test: (o) => o.plataforma === "Android" },
+  { key: "computador", label: "Computador", test: (o) => o.plataforma === "Computador" },
 ];
 
 export default function PedidosLpqvTab() {
@@ -50,6 +51,10 @@ export default function PedidosLpqvTab() {
     () => orders.filter((o) => o.plataforma === "Android" && pagoNaoNotificado(o)),
     [orders]
   );
+  const computadorPendentes = useMemo(
+    () => orders.filter((o) => o.plataforma === "Computador" && pagoNaoNotificado(o)),
+    [orders]
+  );
   // 2ª lista: já notificados ("a caminho"), ainda não baixados nessa etapa
   const iosACaminho = useMemo(
     () => orders.filter((o) => o.plataforma === "iOS" && notificado(o) && !o.acaminhoBaixadoEm),
@@ -57,6 +62,10 @@ export default function PedidosLpqvTab() {
   );
   const androidACaminho = useMemo(
     () => orders.filter((o) => o.plataforma === "Android" && notificado(o) && !o.acaminhoBaixadoEm),
+    [orders]
+  );
+  const computadorACaminho = useMemo(
+    () => orders.filter((o) => o.plataforma === "Computador" && notificado(o) && !o.acaminhoBaixadoEm),
     [orders]
   );
 
@@ -259,7 +268,7 @@ export default function PedidosLpqvTab() {
         {msg && <span className="text-[13px] font-medium text-brand">{msg}</span>}
       </div>
 
-      {/* Exportar por dispositivo (quem fez o pedido pelo app iOS ou Android) — só pagos e ainda não notificados */}
+      {/* Exportar por dispositivo (quem fez o pedido pelo app iOS, Android ou Computador) — só pagos e ainda não notificados */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           onClick={() => baixarGrupo(iosPendentes, "pedidos-ios.csv", "iOS", markNotified)}
@@ -274,6 +283,15 @@ export default function PedidosLpqvTab() {
           className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
         >
           <Download size={15} color="#1F8A5B" /> Baixar todos Android ({androidPendentes.length})
+        </button>
+        <button
+          onClick={() =>
+            baixarGrupo(computadorPendentes, "pedidos-computador.csv", "Computador", markNotified)
+          }
+          disabled={busy || computadorPendentes.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1D4ED8] disabled:opacity-40"
+        >
+          <Download size={15} color="#1D4ED8" /> Baixar todos Computador ({computadorPendentes.length})
         </button>
       </div>
 
@@ -301,6 +319,20 @@ export default function PedidosLpqvTab() {
           className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
         >
           <Download size={15} color="#1F8A5B" /> Baixar todos Android a caminho ({androidACaminho.length})
+        </button>
+        <button
+          onClick={() =>
+            baixarGrupo(
+              computadorACaminho,
+              "pedidos-computador-a-caminho.csv",
+              "Computador a caminho",
+              markAcaminhoBaixado
+            )
+          }
+          disabled={busy || computadorACaminho.length === 0}
+          className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1D4ED8] disabled:opacity-40"
+        >
+          <Download size={15} color="#1D4ED8" /> Baixar todos Computador a caminho ({computadorACaminho.length})
         </button>
       </div>
 
