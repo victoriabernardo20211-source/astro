@@ -17,6 +17,7 @@ interface DayGroup {
   orders: Order[];
   ios: Order[];
   android: Order[];
+  computador: Order[];
   aNotificar: Order[];
 }
 
@@ -41,6 +42,7 @@ export default function PorDiaTab() {
         orders: rows,
         ios: rows.filter((o) => o.plataforma === "iOS"),
         android: rows.filter((o) => o.plataforma === "Android"),
+        computador: rows.filter((o) => o.plataforma === "Computador"),
         aNotificar: rows.filter(aNotificar),
       }));
   }, [orders]);
@@ -73,7 +75,7 @@ export default function PorDiaTab() {
         <h3 className="font-display text-[18px] font-bold text-ink">Pedidos por dia</h3>
         <p className="mt-1 text-[13px] text-muted">
           Pedidos PAGOS separados pelo dia do pedido, prontos pra envio. Envie o
-          e-mail de postagem por dia, ou baixe tudo (ou só iOS/Android) daquele dia.
+          e-mail de postagem por dia, ou baixe tudo (ou só iOS/Android/Computador) daquele dia.
         </p>
       </div>
 
@@ -137,6 +139,15 @@ export default function PorDiaTab() {
                 className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1F8A5B] disabled:opacity-40"
               >
                 <Download size={15} color="#1F8A5B" /> Baixar Android do dia {g.label} ({g.android.length})
+              </button>
+              <button
+                onClick={() =>
+                  exportCsv(g.computador, `pedidos-pagos-computador-${g.day}.csv`)
+                }
+                disabled={g.computador.length === 0}
+                className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-field bg-white px-[14px] py-[9px] text-[13px] font-bold text-[#1D4ED8] disabled:opacity-40"
+              >
+                <Download size={15} color="#1D4ED8" /> Baixar Computador do dia {g.label} ({g.computador.length})
               </button>
             </div>
           </div>
